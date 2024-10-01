@@ -1,0 +1,1693 @@
+openapi: 3.0.0
+info:
+  title: OpenAI API
+  description: The OpenAI REST API. Please see https://platform.openai.com/docs/api-reference for more details.
+  version: 0.0.0
+tags:
+  - name: Realtime
+paths:
+  /realtime:
+    post:
+      operationId: Realtime_startRealtimeSession
+      summary: Starts a real-time conversation session.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+      tags:
+        - Realtime
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
+security:
+  - BearerAuth: []
+components:
+  schemas:
+    Realtime.RealtimeAudioFormat:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - pcm16
+            - g711_ulaw
+            - g711_alaw
+    Realtime.RealtimeAudioInputTranscriptionModel:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - whisper-1
+    Realtime.RealtimeAudioInputTranscriptionSettings:
+      type: object
+      properties:
+        model:
+          allOf:
+            - $ref: '#/components/schemas/Realtime.RealtimeAudioInputTranscriptionModel'
+          default: whisper-1
+    Realtime.RealtimeContentPart:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          $ref: '#/components/schemas/Realtime.RealtimeContentPartType'
+      discriminator:
+        propertyName: type
+        mapping:
+          input_text: '#/components/schemas/Realtime.RealtimeRequestTextContentPart'
+          input_audio: '#/components/schemas/Realtime.RealtimeRequestAudioContentPart'
+          text: '#/components/schemas/Realtime.RealtimeResponseTextContentPart'
+          audio: '#/components/schemas/Realtime.RealtimeResponseAudioContentPart'
+    Realtime.RealtimeContentPartType:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - input_text
+            - input_audio
+            - text
+            - audio
+    Realtime.RealtimeFunctionTool:
+      type: object
+      required:
+        - type
+        - name
+      properties:
+        type:
+          type: string
+          enum:
+            - function
+        name:
+          type: string
+        description:
+          type: string
+        parameters: {}
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeTool'
+      description: The definition of a function tool as used by the realtime endpoint.
+    Realtime.RealtimeItemStatus:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - in_progress
+            - completed
+            - incomplete
+    Realtime.RealtimeItemType:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - message
+            - function_call
+            - function_call_output
+    Realtime.RealtimeMessageRole:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - system
+            - user
+            - assistant
+    Realtime.RealtimeRequestAssistantMessageItem:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum:
+            - assistant
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Realtime.RealtimeRequestTextContentPart'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestMessageItem'
+    Realtime.RealtimeRequestAudioContentPart:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - input_audio
+        transcript:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeContentPart'
+    Realtime.RealtimeRequestCommand:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          $ref: '#/components/schemas/Realtime.RealtimeRequestCommandType'
+        event_id:
+          type: string
+      discriminator:
+        propertyName: type
+        mapping:
+          session.update: '#/components/schemas/Realtime.RealtimeRequestSessionUpdateCommand'
+          input_audio_buffer.append: '#/components/schemas/Realtime.RealtimeRequestInputAudioBufferAppendCommand'
+          input_audio_buffer.commit: '#/components/schemas/Realtime.RealtimeRequestInputAudioBufferCommitCommand'
+          input_audio_buffer.clear: '#/components/schemas/Realtime.RealtimeRequestInputAudioBufferClearCommand'
+          conversation.item.create: '#/components/schemas/Realtime.RealtimeRequestItemCreateCommand'
+          conversation.item.delete: '#/components/schemas/Realtime.RealtimeRequestItemDeleteCommand'
+          conversation.item.truncate: '#/components/schemas/Realtime.RealtimeRequestItemTruncateCommand'
+          response.create: '#/components/schemas/Realtime.RealtimeRequestResponseCreateCommand'
+          response.cancel: '#/components/schemas/Realtime.RealtimeRequestResponseCancelCommand'
+      description: A base representation for messages sent by the client to the service.
+    Realtime.RealtimeRequestCommandType:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - session.update
+            - input_audio_buffer.append
+            - input_audio_buffer.commit
+            - input_audio_buffer.clear
+            - conversation.item.create
+            - conversation.item.delete
+            - conversation.item.truncate
+            - response.create
+            - response.cancel
+    Realtime.RealtimeRequestFunctionCallItem:
+      type: object
+      required:
+        - type
+        - name
+        - call_id
+        - arguments
+      properties:
+        type:
+          type: string
+          enum:
+            - function_call
+        name:
+          type: string
+        call_id:
+          type: string
+        arguments:
+          type: string
+        status:
+          $ref: '#/components/schemas/Realtime.RealtimeItemStatus'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestItem'
+    Realtime.RealtimeRequestFunctionCallOutputItem:
+      type: object
+      required:
+        - type
+        - call_id
+        - output
+      properties:
+        type:
+          type: string
+          enum:
+            - function_call_output
+        call_id:
+          type: string
+        output:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestItem'
+    Realtime.RealtimeRequestInputAudioBufferAppendCommand:
+      type: object
+      required:
+        - type
+        - audio
+      properties:
+        type:
+          type: string
+          enum:
+            - input_audio_buffer.append
+        audio:
+          type: string
+          format: base64
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
+    Realtime.RealtimeRequestInputAudioBufferClearCommand:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - input_audio_buffer.clear
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
+    Realtime.RealtimeRequestInputAudioBufferCommitCommand:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - input_audio_buffer.commit
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
+    Realtime.RealtimeRequestItem:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          $ref: '#/components/schemas/Realtime.RealtimeItemType'
+        id:
+          type: string
+      discriminator:
+        propertyName: type
+        mapping:
+          message: '#/components/schemas/Realtime.RealtimeRequestMessageItem'
+          function_call: '#/components/schemas/Realtime.RealtimeRequestFunctionCallItem'
+          function_call_output: '#/components/schemas/Realtime.RealtimeRequestFunctionCallOutputItem'
+    Realtime.RealtimeRequestItemCreateCommand:
+      type: object
+      required:
+        - type
+        - item
+      properties:
+        type:
+          type: string
+          enum:
+            - conversation.item.create
+        previous_item_id:
+          type: string
+        item:
+          $ref: '#/components/schemas/Realtime.RealtimeRequestItem'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
+    Realtime.RealtimeRequestItemDeleteCommand:
+      type: object
+      required:
+        - type
+        - item_id
+      properties:
+        type:
+          type: string
+          enum:
+            - conversation.item.delete
+        item_id:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
+    Realtime.RealtimeRequestItemTruncateCommand:
+      type: object
+      required:
+        - type
+        - item_id
+        - content_index
+        - audio_end_ms
+      properties:
+        type:
+          type: string
+          enum:
+            - conversation.item.truncate
+        item_id:
+          type: string
+        content_index:
+          type: integer
+          format: int32
+        audio_end_ms:
+          type: integer
+          format: int32
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
+    Realtime.RealtimeRequestMessageItem:
+      type: object
+      required:
+        - type
+        - role
+      properties:
+        type:
+          type: string
+          enum:
+            - message
+        role:
+          $ref: '#/components/schemas/Realtime.RealtimeMessageRole'
+        status:
+          $ref: '#/components/schemas/Realtime.RealtimeItemStatus'
+      discriminator:
+        propertyName: role
+        mapping:
+          system: '#/components/schemas/Realtime.RealtimeRequestSystemMessageItem'
+          user: '#/components/schemas/Realtime.RealtimeRequestUserMessageItem'
+          assistant: '#/components/schemas/Realtime.RealtimeRequestAssistantMessageItem'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestItem'
+    Realtime.RealtimeRequestMessageReferenceItem:
+      type: object
+      required:
+        - type
+        - id
+      properties:
+        type:
+          type: string
+          enum:
+            - message
+        id:
+          type: string
+    Realtime.RealtimeRequestModel:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - gpt-4o-realtime
+    Realtime.RealtimeRequestResponseCancelCommand:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - response.cancel
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
+    Realtime.RealtimeRequestResponseCreateCommand:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - response.create
+        response:
+          type: object
+          properties:
+            commit:
+              type: boolean
+              default: true
+            cancel_previous:
+              type: boolean
+              default: true
+            append_input_items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Realtime.RealtimeRequestItem'
+            input_items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Realtime.RealtimeRequestItem'
+            instructions:
+              type: string
+            modalities:
+              type: array
+              items:
+                type: string
+                enum:
+                  - text
+                  - audio
+            voice:
+              $ref: '#/components/schemas/Realtime.RealtimeVoice'
+            temperature:
+              type: number
+              format: float
+            max_output_tokens:
+              anyOf:
+                - type: integer
+                  format: int32
+                - type: string
+                  enum:
+                    - inf
+              nullable: true
+            tools:
+              type: array
+              items:
+                $ref: '#/components/schemas/Realtime.RealtimeTool'
+            tool_choice:
+              $ref: '#/components/schemas/Realtime.RealtimeToolChoice'
+            output_audio_format:
+              $ref: '#/components/schemas/Realtime.RealtimeAudioFormat'
+          required:
+            - commit
+            - cancel_previous
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
+      description: |-
+        Trigger model inference to generate a model turn, the response will be streamed back with
+        a series of events, starting with an add_message event and ending with a turn_finished event.
+        If functions are enabled the response may be two, the second being a tool_call.
+
+        Fields:
+        - conversation_label: References a conversation. If empty or set to a label that does not exist,
+        Generate will create a new conversation, otherwise it will be based on the context of the
+        existing conversation.
+        - commit: If true, the generated messages will be appended to the end of the conversation.
+        Only valid if conversation_label is set.
+        - cancel_previous: If True, the generation will cancel any pending generation for that specific
+        conversation. If False, the generation will be queued and will be generated after the
+        previous generation has completed.
+        - append_messages: If set, these messages will be appended to the end of the conversation before
+        a response is generated. If commit is false, these messages will be discarded. This can only
+        be done with an existing conversation, and thus will throw an error if conversation_label is
+        not set or does not exist.
+        - messages: If conversation_label is not set or does not exist, this will be the initial messages
+        of the conversation, i.e. the context of the generation. If the conversation exists, this will
+        throw an error.
+    Realtime.RealtimeRequestSessionUpdateCommand:
+      type: object
+      required:
+        - type
+        - session
+      properties:
+        type:
+          type: string
+          enum:
+            - session.update
+        session:
+          type: object
+          properties:
+            model:
+              $ref: '#/components/schemas/Realtime.RealtimeRequestModel'
+            modalities:
+              type: array
+              items:
+                type: string
+                enum:
+                  - text
+                  - audio
+            voice:
+              allOf:
+                - $ref: '#/components/schemas/Realtime.RealtimeVoice'
+              default: alloy
+            instructions:
+              type: string
+            input_audio_format:
+              $ref: '#/components/schemas/Realtime.RealtimeAudioFormat'
+            output_audio_format:
+              $ref: '#/components/schemas/Realtime.RealtimeAudioFormat'
+            input_audio_transcription:
+              $ref: '#/components/schemas/Realtime.RealtimeAudioInputTranscriptionSettings'
+            turn_detection:
+              $ref: '#/components/schemas/Realtime.RealtimeTurnDetection'
+            tools:
+              type: array
+              items:
+                $ref: '#/components/schemas/Realtime.RealtimeTool'
+            tool_choice:
+              allOf:
+                - $ref: '#/components/schemas/Realtime.RealtimeToolChoice'
+              default: auto
+            temperature:
+              type: number
+              format: float
+            max_response_output_tokens:
+              anyOf:
+                - type: integer
+                  format: int32
+                - type: string
+                  enum:
+                    - inf
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
+    Realtime.RealtimeRequestSystemMessageItem:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum:
+            - system
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Realtime.RealtimeRequestTextContentPart'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestMessageItem'
+    Realtime.RealtimeRequestTextContentPart:
+      type: object
+      required:
+        - type
+        - text
+      properties:
+        type:
+          type: string
+          enum:
+            - input_text
+        text:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeContentPart'
+    Realtime.RealtimeRequestUserMessageItem:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum:
+            - user
+        content:
+          type: array
+          items:
+            anyOf:
+              - $ref: '#/components/schemas/Realtime.RealtimeRequestTextContentPart'
+              - $ref: '#/components/schemas/Realtime.RealtimeRequestAudioContentPart'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeRequestMessageItem'
+    Realtime.RealtimeResponse:
+      type: object
+      required:
+        - object
+        - id
+        - status
+        - status_details
+        - output
+        - usage
+      properties:
+        object:
+          type: string
+          enum:
+            - realtime.response
+        id:
+          type: string
+        status:
+          allOf:
+            - $ref: '#/components/schemas/Realtime.RealtimeResponseStatus'
+          default: in_progress
+        status_details:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Realtime.RealtimeResponseStatusDetails'
+          nullable: true
+        output:
+          type: array
+          items:
+            $ref: '#/components/schemas/Realtime.RealtimeResponseItem'
+        usage:
+          type: object
+          properties:
+            total_tokens:
+              type: integer
+              format: int32
+            input_tokens:
+              type: integer
+              format: int32
+            output_tokens:
+              type: integer
+              format: int32
+            input_token_details:
+              type: object
+              properties:
+                cached_tokens:
+                  type: integer
+                  format: int32
+                text_tokens:
+                  type: integer
+                  format: int32
+                audio_tokens:
+                  type: integer
+                  format: int32
+              required:
+                - cached_tokens
+                - text_tokens
+                - audio_tokens
+            output_token_details:
+              type: object
+              properties:
+                text_tokens:
+                  type: integer
+                  format: int32
+                audio_tokens:
+                  type: integer
+                  format: int32
+              required:
+                - text_tokens
+                - audio_tokens
+          required:
+            - total_tokens
+            - input_tokens
+            - output_tokens
+            - input_token_details
+            - output_token_details
+    Realtime.RealtimeResponseApiError:
+      type: object
+      required:
+        - type
+        - message
+      properties:
+        type:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        param:
+          type: string
+    Realtime.RealtimeResponseAudioContentPart:
+      type: object
+      required:
+        - type
+        - transcript
+      properties:
+        type:
+          type: string
+          enum:
+            - audio
+        transcript:
+          type: string
+          nullable: true
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeContentPart'
+    Realtime.RealtimeResponseAudioDeltaCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - item_id
+        - output_index
+        - content_index
+        - delta
+      properties:
+        type:
+          type: string
+          enum:
+            - response.audio.delta
+        response_id:
+          type: string
+        item_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        content_index:
+          type: integer
+          format: int32
+        delta:
+          type: string
+          format: base64
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseAudioDoneCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - item_id
+        - output_index
+        - content_index
+      properties:
+        type:
+          type: string
+          enum:
+            - response.audio.done
+        response_id:
+          type: string
+        item_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        content_index:
+          type: integer
+          format: int32
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseAudioTranscriptDeltaCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - item_id
+        - output_index
+        - content_index
+        - delta
+      properties:
+        type:
+          type: string
+          enum:
+            - response.audio_transcript.delta
+        response_id:
+          type: string
+        item_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        content_index:
+          type: integer
+          format: int32
+        delta:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseAudioTranscriptDoneCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - item_id
+        - output_index
+        - content_index
+      properties:
+        type:
+          type: string
+          enum:
+            - response.audio_transcript.done
+        response_id:
+          type: string
+        item_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        content_index:
+          type: integer
+          format: int32
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseCancelledStatusDetails:
+      type: object
+      required:
+        - type
+        - reason
+      properties:
+        type:
+          type: string
+          enum:
+            - cancelled
+        reason:
+          type: string
+          enum:
+            - turn_detected
+            - client_cancelled
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseStatusDetails'
+    Realtime.RealtimeResponseCommand:
+      type: object
+      required:
+        - type
+        - event_id
+      properties:
+        type:
+          $ref: '#/components/schemas/Realtime.RealtimeResponseCommandType'
+        event_id:
+          type: string
+          nullable: true
+      discriminator:
+        propertyName: type
+        mapping:
+          session.created: '#/components/schemas/Realtime.RealtimeResponseSessionCreatedCommand'
+          session.updated: '#/components/schemas/Realtime.RealtimeResponseSessionUpdatedCommand'
+          conversation.item.created: '#/components/schemas/Realtime.RealtimeResponseItemCreatedCommand'
+          conversation.item.deleted: '#/components/schemas/Realtime.RealtimeResponseItemDeletedCommand'
+          conversation.item.truncated: '#/components/schemas/Realtime.RealtimeResponseItemTruncatedCommand'
+          response.created: '#/components/schemas/Realtime.RealtimeResponseCreatedCommand'
+          response.done: '#/components/schemas/Realtime.RealtimeResponseDoneCommand'
+          rate_limits.updated: '#/components/schemas/Realtime.RealtimeResponseRateLimitsUpdatedCommand'
+          response.output_item.added: '#/components/schemas/Realtime.RealtimeResponseOutputItemAddedCommand'
+          response.output_item.done: '#/components/schemas/Realtime.RealtimeResponseOutputItemDoneCommand'
+          response.content_part.added: '#/components/schemas/Realtime.RealtimeResponseContentPartAddedCommand'
+          response.content_part.done: '#/components/schemas/Realtime.RealtimeResponseContentPartDoneCommand'
+          response.audio.delta: '#/components/schemas/Realtime.RealtimeResponseAudioDeltaCommand'
+          response.audio.done: '#/components/schemas/Realtime.RealtimeResponseAudioDoneCommand'
+          response.audio_transcript.delta: '#/components/schemas/Realtime.RealtimeResponseAudioTranscriptDeltaCommand'
+          response.audio_transcript.done: '#/components/schemas/Realtime.RealtimeResponseAudioTranscriptDoneCommand'
+          response.text.delta: '#/components/schemas/Realtime.RealtimeResponseTextDeltaCommand'
+          response.text.done: '#/components/schemas/Realtime.RealtimeResponseTextDoneCommand'
+          response.function_call_arguments.delta: '#/components/schemas/Realtime.RealtimeResponseFunctionCallArgumentsDeltaCommand'
+          response.function_call_arguments.done: '#/components/schemas/Realtime.RealtimeResponseFunctionCallArgumentsDoneCommand'
+          input_audio_buffer.speech_started: '#/components/schemas/Realtime.RealtimeResponseInputAudioBufferSpeechStartedCommand'
+          input_audio_buffer.speech_stopped: '#/components/schemas/Realtime.RealtimeResponseInputAudioBufferSpeechStoppedCommand'
+          conversation.item.input_audio_transcription.completed: '#/components/schemas/Realtime.RealtimeResponseItemInputAudioTranscriptionCompletedCommand'
+          conversation.item.input_audio_transcription.failed: '#/components/schemas/Realtime.RealtimeResponseItemInputAudioTranscriptionFailedCommand'
+          input_audio_buffer.committed: '#/components/schemas/Realtime.RealtimeResponseInputAudioBufferCommittedCommand'
+          input_audio_buffer.cleared: '#/components/schemas/Realtime.RealtimeResponseInputAudioBufferClearedCommand'
+          error: '#/components/schemas/Realtime.RealtimeResponseErrorCommand'
+      description: Base representation of a WebSocket message received from the service.
+    Realtime.RealtimeResponseCommandType:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - session.created
+            - session.updated
+            - conversation.item.created
+            - conversation.item.deleted
+            - conversation.item.truncated
+            - response.created
+            - response.done
+            - rate_limits.updated
+            - response.output_item.added
+            - response.output_item.done
+            - response.content_part.added
+            - response.content_part.done
+            - response.audio.delta
+            - response.audio.done
+            - response.audio_transcript.delta
+            - response.audio_transcript.done
+            - response.text.delta
+            - response.text.done
+            - response.function_call_arguments.delta
+            - response.function_call_arguments.done
+            - input_audio_buffer.speech_started
+            - input_audio_buffer.speech_stopped
+            - conversation.item.input_audio_transcription.completed
+            - conversation.item.input_audio_transcription.failed
+            - input_audio_buffer.committed
+            - input_audio_buffer.cleared
+            - error
+    Realtime.RealtimeResponseContentPartAddedCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - item_id
+        - output_index
+        - content_index
+        - part
+      properties:
+        type:
+          type: string
+          enum:
+            - response.content_part.added
+        response_id:
+          type: string
+        item_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        content_index:
+          type: integer
+          format: int32
+        part:
+          $ref: '#/components/schemas/Realtime.RealtimeContentPart'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseContentPartDoneCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - item_id
+        - output_index
+        - content_index
+        - part
+      properties:
+        type:
+          type: string
+          enum:
+            - response.content_part.done
+        response_id:
+          type: string
+        item_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        content_index:
+          type: integer
+          format: int32
+        part:
+          $ref: '#/components/schemas/Realtime.RealtimeContentPart'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseCreatedCommand:
+      type: object
+      required:
+        - type
+        - response
+      properties:
+        type:
+          type: string
+          enum:
+            - response.created
+        response:
+          $ref: '#/components/schemas/Realtime.RealtimeResponse'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseDoneCommand:
+      type: object
+      required:
+        - type
+        - response
+      properties:
+        type:
+          type: string
+          enum:
+            - response.done
+        response:
+          $ref: '#/components/schemas/Realtime.RealtimeResponse'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseError:
+      type: object
+      required:
+        - type
+        - message
+      properties:
+        type:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        param:
+          type: string
+        event_id:
+          type: string
+    Realtime.RealtimeResponseErrorCommand:
+      type: object
+      required:
+        - type
+        - error
+      properties:
+        type:
+          type: string
+          enum:
+            - error
+        error:
+          $ref: '#/components/schemas/Realtime.RealtimeResponseError'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+      description: A command that describes an error encountered during a realtime operation.
+    Realtime.RealtimeResponseFailedStatusDetails:
+      type: object
+      required:
+        - type
+        - error
+      properties:
+        type:
+          type: string
+          enum:
+            - failed
+        error: {}
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseStatusDetails'
+    Realtime.RealtimeResponseFunctionCallArgumentsDeltaCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - item_id
+        - output_index
+        - call_id
+        - delta
+      properties:
+        type:
+          type: string
+          enum:
+            - response.function_call_arguments.delta
+        response_id:
+          type: string
+        item_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        call_id:
+          type: string
+        delta:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseFunctionCallArgumentsDoneCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - item_id
+        - output_index
+        - call_id
+        - name
+        - arguments
+      properties:
+        type:
+          type: string
+          enum:
+            - response.function_call_arguments.done
+        response_id:
+          type: string
+        item_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        call_id:
+          type: string
+        name:
+          type: string
+        arguments:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseFunctionCallItem:
+      type: object
+      required:
+        - type
+        - name
+        - call_id
+        - arguments
+        - status
+      properties:
+        type:
+          type: string
+          enum:
+            - function_call
+        name:
+          type: string
+        call_id:
+          type: string
+        arguments:
+          type: string
+        status:
+          $ref: '#/components/schemas/Realtime.RealtimeItemStatus'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseItem'
+    Realtime.RealtimeResponseFunctionCallOutputItem:
+      type: object
+      required:
+        - type
+        - call_id
+        - output
+      properties:
+        type:
+          type: string
+          enum:
+            - function_call_output
+        call_id:
+          type: string
+        output:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseItem'
+    Realtime.RealtimeResponseIncompleteStatusDetails:
+      type: object
+      required:
+        - type
+        - reason
+      properties:
+        type:
+          type: string
+          enum:
+            - incomplete
+        reason:
+          type: string
+          enum:
+            - max_output_tokens
+            - content_filter
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseStatusDetails'
+    Realtime.RealtimeResponseInputAudioBufferClearedCommand:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - input_audio_buffer.cleared
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseInputAudioBufferCommittedCommand:
+      type: object
+      required:
+        - type
+        - item_id
+      properties:
+        type:
+          type: string
+          enum:
+            - input_audio_buffer.committed
+        item_id:
+          type: string
+        previous_item_id:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseInputAudioBufferSpeechStartedCommand:
+      type: object
+      required:
+        - type
+        - audio_start_ms
+        - item_id
+      properties:
+        type:
+          type: string
+          enum:
+            - input_audio_buffer.speech_started
+        audio_start_ms:
+          type: integer
+          format: int32
+        item_id:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseInputAudioBufferSpeechStoppedCommand:
+      type: object
+      required:
+        - type
+        - audio_end_ms
+        - item_id
+      properties:
+        type:
+          type: string
+          enum:
+            - input_audio_buffer.speech_stopped
+        audio_end_ms:
+          type: integer
+          format: int32
+        item_id:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseItem:
+      type: object
+      required:
+        - object
+        - type
+        - id
+      properties:
+        object:
+          type: string
+          enum:
+            - realtime.item
+        type:
+          $ref: '#/components/schemas/Realtime.RealtimeItemType'
+        id:
+          type: string
+          nullable: true
+      discriminator:
+        propertyName: type
+        mapping:
+          message: '#/components/schemas/Realtime.RealtimeResponseMessageItem'
+          function_call: '#/components/schemas/Realtime.RealtimeResponseFunctionCallItem'
+          function_call_output: '#/components/schemas/Realtime.RealtimeResponseFunctionCallOutputItem'
+    Realtime.RealtimeResponseItemCreatedCommand:
+      type: object
+      required:
+        - type
+        - item
+      properties:
+        type:
+          type: string
+          enum:
+            - conversation.item.created
+        item:
+          $ref: '#/components/schemas/Realtime.RealtimeResponseItem'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseItemDeletedCommand:
+      type: object
+      required:
+        - type
+        - item_id
+      properties:
+        type:
+          type: string
+          enum:
+            - conversation.item.deleted
+        item_id:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseItemInputAudioTranscriptionCompletedCommand:
+      type: object
+      required:
+        - type
+        - item_id
+        - content_index
+        - transcript
+      properties:
+        type:
+          type: string
+          enum:
+            - conversation.item.input_audio_transcription.completed
+        item_id:
+          type: string
+        content_index:
+          type: integer
+          format: int32
+        transcript:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseItemInputAudioTranscriptionFailedCommand:
+      type: object
+      required:
+        - type
+        - item_id
+        - content_index
+        - error
+      properties:
+        type:
+          type: string
+          enum:
+            - conversation.item.input_audio_transcription.failed
+        item_id:
+          type: string
+        content_index:
+          type: integer
+          format: int32
+        error:
+          $ref: '#/components/schemas/Realtime.RealtimeResponseApiError'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseItemTruncatedCommand:
+      type: object
+      required:
+        - type
+        - item_id
+        - audio_end_ms
+        - index
+      properties:
+        type:
+          type: string
+          enum:
+            - conversation.item.truncated
+        item_id:
+          type: string
+        audio_end_ms:
+          type: integer
+          format: int32
+        index:
+          type: integer
+          format: int32
+          default: 0
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseMessageItem:
+      type: object
+      required:
+        - type
+        - role
+        - content
+        - status
+      properties:
+        type:
+          type: string
+          enum:
+            - message
+        role:
+          $ref: '#/components/schemas/Realtime.RealtimeMessageRole'
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Realtime.RealtimeContentPart'
+        status:
+          $ref: '#/components/schemas/Realtime.RealtimeItemStatus'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseItem'
+    Realtime.RealtimeResponseOutputItemAddedCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - output_index
+        - item
+      properties:
+        type:
+          type: string
+          enum:
+            - response.output_item.added
+        response_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        item:
+          $ref: '#/components/schemas/Realtime.RealtimeResponseItem'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseOutputItemDoneCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - output_index
+        - item
+      properties:
+        type:
+          type: string
+          enum:
+            - response.output_item.done
+        response_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        item:
+          $ref: '#/components/schemas/Realtime.RealtimeResponseItem'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseRateLimitDetailsItem:
+      type: object
+      required:
+        - name
+        - limit
+        - remaining
+        - reset_seconds
+      properties:
+        name:
+          type: string
+        limit:
+          type: integer
+          format: int32
+        remaining:
+          type: integer
+          format: int32
+        reset_seconds:
+          type: number
+          format: float
+    Realtime.RealtimeResponseRateLimitsUpdatedCommand:
+      type: object
+      required:
+        - type
+        - rate_limits
+      properties:
+        type:
+          type: string
+          enum:
+            - rate_limits.updated
+        rate_limits:
+          type: array
+          items:
+            $ref: '#/components/schemas/Realtime.RealtimeResponseRateLimitDetailsItem'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseSession:
+      type: object
+      required:
+        - object
+        - id
+        - model
+        - modalities
+        - instructions
+        - voice
+        - input_audio_format
+        - output_audio_format
+        - input_audio_transcription
+        - turn_detection
+        - tools
+        - tool_choice
+        - temperature
+        - max_response_output_tokens
+      properties:
+        object:
+          type: string
+          enum:
+            - realtime.session
+        id:
+          type: string
+        model:
+          type: string
+        modalities:
+          type: array
+          items:
+            type: string
+            enum:
+              - text
+              - audio
+        instructions:
+          type: string
+        voice:
+          $ref: '#/components/schemas/Realtime.RealtimeVoice'
+        input_audio_format:
+          $ref: '#/components/schemas/Realtime.RealtimeAudioFormat'
+        output_audio_format:
+          $ref: '#/components/schemas/Realtime.RealtimeAudioFormat'
+        input_audio_transcription:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Realtime.RealtimeAudioInputTranscriptionSettings'
+          nullable: true
+        turn_detection:
+          $ref: '#/components/schemas/Realtime.RealtimeTurnDetection'
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/Realtime.RealtimeTool'
+        tool_choice:
+          $ref: '#/components/schemas/Realtime.RealtimeToolChoice'
+        temperature:
+          type: number
+          format: float
+        max_response_output_tokens:
+          type: integer
+          format: int32
+          nullable: true
+    Realtime.RealtimeResponseSessionCreatedCommand:
+      type: object
+      required:
+        - type
+        - session
+      properties:
+        type:
+          type: string
+          enum:
+            - session.created
+        session:
+          $ref: '#/components/schemas/Realtime.RealtimeResponseSession'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseSessionUpdatedCommand:
+      type: object
+      required:
+        - type
+        - session
+      properties:
+        type:
+          type: string
+          enum:
+            - session.updated
+        session:
+          $ref: '#/components/schemas/Realtime.RealtimeResponseSession'
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseStatus:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - in_progress
+            - completed
+            - cancelled
+            - incomplete
+            - failed
+    Realtime.RealtimeResponseStatusDetails:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          $ref: '#/components/schemas/Realtime.RealtimeResponseStatus'
+      discriminator:
+        propertyName: type
+        mapping:
+          cancelled: '#/components/schemas/Realtime.RealtimeResponseCancelledStatusDetails'
+          incomplete: '#/components/schemas/Realtime.RealtimeResponseIncompleteStatusDetails'
+          failed: '#/components/schemas/Realtime.RealtimeResponseFailedStatusDetails'
+    Realtime.RealtimeResponseTextContentPart:
+      type: object
+      required:
+        - type
+        - text
+      properties:
+        type:
+          type: string
+          enum:
+            - text
+        text:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeContentPart'
+    Realtime.RealtimeResponseTextDeltaCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - item_id
+        - output_index
+        - content_index
+        - delta
+      properties:
+        type:
+          type: string
+          enum:
+            - response.text.delta
+        response_id:
+          type: string
+        item_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        content_index:
+          type: integer
+          format: int32
+        delta:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeResponseTextDoneCommand:
+      type: object
+      required:
+        - type
+        - response_id
+        - item_id
+        - output_index
+        - content_index
+        - value
+      properties:
+        type:
+          type: string
+          enum:
+            - response.text.done
+        response_id:
+          type: string
+        item_id:
+          type: string
+        output_index:
+          type: integer
+          format: int32
+        content_index:
+          type: integer
+          format: int32
+        value:
+          type: string
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeResponseCommand'
+    Realtime.RealtimeServerVadTurnDetection:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - server_vad
+        threshold:
+          type: number
+          format: float
+          default: 0.5
+        prefix_padding_ms:
+          type: string
+          format: duration
+        silence_duration_ms:
+          type: string
+          format: duration
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeTurnDetection'
+    Realtime.RealtimeTool:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          $ref: '#/components/schemas/Realtime.RealtimeToolType'
+      discriminator:
+        propertyName: type
+        mapping:
+          function: '#/components/schemas/Realtime.RealtimeFunctionTool'
+      description: The base representation of a realtime tool definition.
+    Realtime.RealtimeToolChoice:
+      anyOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeToolChoiceLiteral'
+        - $ref: '#/components/schemas/Realtime.RealtimeToolChoiceObject'
+      description: |-
+        The combined set of available representations for a realtime tool_choice parameter, encompassing both string
+        literal options like 'auto' as well as structured references to defined tools.
+    Realtime.RealtimeToolChoiceFunctionObject:
+      type: object
+      required:
+        - type
+        - function
+      properties:
+        type:
+          type: string
+          enum:
+            - function
+        function:
+          type: object
+          properties:
+            name:
+              type: string
+          required:
+            - name
+      allOf:
+        - $ref: '#/components/schemas/Realtime.RealtimeToolChoiceObject'
+      description: The representation of a realtime tool_choice selecting a named function tool.
+    Realtime.RealtimeToolChoiceLiteral:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - auto
+            - none
+            - required
+      description: The available set of mode-level, string literal tool_choice options for the realtime endpoint.
+    Realtime.RealtimeToolChoiceObject:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          $ref: '#/components/schemas/Realtime.RealtimeToolType'
+      discriminator:
+        propertyName: type
+        mapping:
+          function: '#/components/schemas/Realtime.RealtimeToolChoiceFunctionObject'
+      description: A base representation for a realtime tool_choice selecting a named tool.
+    Realtime.RealtimeToolType:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - function
+      description: |-
+        The supported tool type discriminators for realtime tools.
+        Currently, only 'function' tools are supported.
+    Realtime.RealtimeTurnDetection:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          $ref: '#/components/schemas/Realtime.RealtimeTurnDetectionType'
+      discriminator:
+        propertyName: type
+        mapping:
+          server_vad: '#/components/schemas/Realtime.RealtimeServerVadTurnDetection'
+    Realtime.RealtimeTurnDetectionType:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - server_vad
+    Realtime.RealtimeVoice:
+      anyOf:
+        - type: string
+        - type: string
+          enum:
+            - alloy
+            - shimmer
+            - echo
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+servers:
+  - url: https://api.openai.com
+    description: OpenAI Endpoint
+    variables: {}

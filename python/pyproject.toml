@@ -1,0 +1,40 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "rtclient"
+version = "0.4.0"
+description = "A client for the RT API"
+authors = ["Microsoft Corporation"]
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+aiohttp = "*"
+azure-identity = "*"
+pydantic = "*"
+
+[tool.poetry.dev-dependencies]
+ruff = "*"
+black = "*"
+python-dotenv = "*"
+soundfile = "*"
+numpy = "*"
+scipy = "*"
+pytest = "*"
+pytest-asyncio = "*"
+
+[tool.poetry.scripts]
+
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+extend-ignore = ["UP007"]
+
+[tool.black]
+line-length = 120
+target-version = ["py312"]

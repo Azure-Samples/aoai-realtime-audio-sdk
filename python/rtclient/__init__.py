@@ -149,7 +149,9 @@ class RTLowLevelClient:
             auth_headers = self._get_auth()
             headers = {"x-ms-client-request-id": str(self.request_id), **auth_headers}
             self.ws = await self._session.ws_connect(
-                "/realtime", headers=headers, params={"deployment": self._azure_deployment, "api-version": "alpha"}
+                "/openai/realtime",
+                headers=headers,
+                params={"deployment": self._azure_deployment, "api-version": "2024-10-01-preview"},
             )
         else:
             headers = {

@@ -1,0 +1,553 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+export type Voice = "alloy" | "shimmer" | "echo";
+export type AudioFormat = "pcm16" | "g711-ulaw" | "g711-alaw";
+export type Modality = "text" | "audio";
+
+export interface NoTurnDetection {
+  type: "none";
+}
+
+export interface ServerVAD {
+  type: "server_vad";
+  threshold?: number;
+  prefix_padding_ms?: number;
+  silence_duration_ms?: number;
+}
+
+export type TurnDetection = NoTurnDetection | ServerVAD;
+
+export interface FunctionToolChoice {
+  type: "function";
+  function: string;
+}
+
+export type ToolChoice = "auto" | "none" | "required" | FunctionToolChoice;
+
+export type MessageRole = "system" | "assistant" | "user";
+
+export interface InputAudioTranscription {
+  model: "whisper-1";
+}
+
+export interface ClientMessageBase {
+  event_id?: string;
+}
+
+export type ToolsDefinition = Record<string, any>[];
+
+export interface SessionUpdateParams {
+  model?: string;
+  modalities?: Modality[];
+  voice?: Voice;
+  instructions?: string;
+  input_audio_format?: AudioFormat;
+  output_audio_format?: AudioFormat;
+  input_audio_transcription?: InputAudioTranscription;
+  turn_detection?: TurnDetection;
+  tools?: ToolsDefinition;
+  tool_choice?: ToolChoice;
+  temperature?: number;
+  max_response_output_tokens?: number;
+}
+
+export interface SessionUpdateMessage extends ClientMessageBase {
+  type: "session.update";
+  session: SessionUpdateParams;
+}
+
+export interface InputAudioBufferAppendMessage extends ClientMessageBase {
+  type: "input_audio_buffer.append";
+  audio: string;
+}
+
+export interface InputAudioBufferCommitMessage extends ClientMessageBase {
+  type: "input_audio_buffer.commit";
+}
+
+export interface InputAudioBufferClearMessage extends ClientMessageBase {
+  type: "input_audio_buffer.clear";
+}
+
+export const MessageItemType = "message" as const;
+export type MessageItemType = typeof MessageItemType;
+
+export interface InputTextContentPart {
+  type: "input_text";
+  text: string;
+}
+
+export interface InputAudioContentPart {
+  type: "input_audio";
+  audio: string;
+  transcript?: string;
+}
+
+export interface OutputTextContentPart {
+  type: "text";
+  text: string;
+}
+
+export type SystemContentPart = InputTextContentPart;
+export type UserContentPart = InputTextContentPart | InputAudioContentPart;
+export type AssistantContentPart = OutputTextContentPart;
+
+export type ItemParamStatus = "completed" | "incomplete";
+
+export interface SystemMessageItem {
+  type: MessageItemType;
+  role: "system";
+  id?: string;
+  content: SystemContentPart[];
+  status?: ItemParamStatus;
+}
+
+export interface UserMessageItem {
+  type: MessageItemType;
+  role: "user";
+  id?: string;
+  content: UserContentPart[];
+  status?: ItemParamStatus;
+}
+
+export interface AssistantMessageItem {
+  type: MessageItemType;
+  role: "assistant";
+  id?: string;
+  content: AssistantContentPart[];
+  status?: ItemParamStatus;
+}
+
+export type MessageItem =
+  | SystemMessageItem
+  | UserMessageItem
+  | AssistantMessageItem;
+
+export interface FunctionCallItem {
+  type: "function_call";
+  id?: string;
+  name: string;
+  call_id: string;
+  arguments: string;
+  status?: ItemParamStatus;
+}
+
+export interface FunctionCallOutputItem {
+  type: "function_call_output";
+  id?: string;
+  call_id: string;
+  output: string;
+  status?: ItemParamStatus;
+}
+
+export type Item = MessageItem | FunctionCallItem | FunctionCallOutputItem;
+
+export interface ItemCreateMessage extends ClientMessageBase {
+  type: "conversation.item.create";
+  previous_item_id?: string;
+  item: Item;
+}
+
+export interface ItemTruncateMessage extends ClientMessageBase {
+  type: "conversation.item.truncate";
+  item_id: string;
+  content_index: number;
+  audio_end_ms: number;
+}
+
+export interface ItemDeleteMessage extends ClientMessageBase {
+  type: "conversation.item.delete";
+  item_id: string;
+}
+
+export interface ResponseCreateParams {
+  commit: boolean;
+  cancel_previous: boolean;
+  append_input_items?: Item[];
+  input_items?: Item[];
+  instructions?: string;
+  modalities?: Modality[];
+  voice?: Voice;
+  temperature?: number;
+  max_output_tokens?: number;
+  tools?: ToolsDefinition;
+  tool_choice?: ToolChoice;
+  output_audio_format?: AudioFormat;
+}
+
+export interface ResponseCreateMessage extends ClientMessageBase {
+  type: "response.create";
+  response?: ResponseCreateParams;
+}
+
+export interface ResponseCancelMessage extends ClientMessageBase {
+  type: "response.cancel";
+}
+
+export interface RealtimeError {
+  message: string;
+  type?: string;
+  code?: string;
+  param?: string;
+  event_id?: string;
+}
+
+export interface ServerMessageBase {
+  event_id: string;
+}
+
+export interface ErrorMessage extends ServerMessageBase {
+  type: "error";
+  error: RealtimeError;
+}
+
+export interface Session {
+  id: string;
+  model: string;
+  modalities: Modality[];
+  instructions: string;
+  voice: Voice;
+  input_audio_format: AudioFormat;
+  output_audio_format: AudioFormat;
+  input_audio_transcription?: InputAudioTranscription;
+  turn_detection: TurnDetection;
+  tools: ToolsDefinition;
+  tool_choice: ToolChoice;
+  temperature: number;
+  max_response_output_tokens?: number;
+}
+
+export interface SessionCreatedMessage extends ServerMessageBase {
+  type: "session.created";
+  session: Session;
+}
+
+export interface SessionUpdatedMessage extends ServerMessageBase {
+  type: "session.updated";
+  session: Session;
+}
+
+export interface InputAudioBufferCommittedMessage extends ServerMessageBase {
+  type: "input_audio_buffer.committed";
+  previous_item_id?: string;
+  item_id: string;
+}
+
+export interface InputAudioBufferClearedMessage extends ServerMessageBase {
+  type: "input_audio_buffer.cleared";
+}
+
+export interface InputAudioBufferSpeechStartedMessage
+  extends ServerMessageBase {
+  type: "input_audio_buffer.speech_started";
+  audio_start_ms: number;
+  item_id: string;
+}
+
+export interface InputAudioBufferSpeechStoppedMessage
+  extends ServerMessageBase {
+  type: "input_audio_buffer.speech_stopped";
+  audio_end_ms: number;
+  item_id: string;
+}
+
+export type ResponseItemStatus = "in_progress" | "completed" | "incomplete";
+
+export interface ResponseItemInputTextContentPart {
+  type: "input_text";
+  text: string;
+}
+
+export interface ResponseItemInputAudioContentPart {
+  type: "input_audio";
+  transcript?: string;
+}
+
+export interface ResponseItemTextContentPart {
+  type: "text";
+  text: string;
+}
+
+export interface ResponseItemAudioContentPart {
+  type: "audio";
+  transcript?: string;
+}
+
+export type ResponseItemContentPart =
+  | ResponseItemInputTextContentPart
+  | ResponseItemInputAudioContentPart
+  | ResponseItemTextContentPart
+  | ResponseItemAudioContentPart;
+
+export interface ResponseItemBase {
+  id?: string;
+  status: ResponseItemStatus;
+}
+
+export interface ResponseMessageItem extends ResponseItemBase {
+  type: MessageItemType;
+  role: MessageRole;
+  content: ResponseItemContentPart[];
+}
+
+export interface ResponseFunctionCallItem extends ResponseItemBase {
+  type: "function_call";
+  name: string;
+  call_id: string;
+  arguments: string;
+}
+
+export interface ResponseFunctionCallOutputItem extends ResponseItemBase {
+  type: "function_call_output";
+  call_id: string;
+  output: string;
+}
+
+export type ResponseItem =
+  | ResponseMessageItem
+  | ResponseFunctionCallItem
+  | ResponseFunctionCallOutputItem;
+
+export interface ItemCreatedMessage extends ServerMessageBase {
+  type: "conversation.item.created";
+  previous_item_id?: string;
+  item: ResponseItem;
+}
+
+export interface ItemTruncatedMessage extends ServerMessageBase {
+  type: "conversation.item.truncated";
+  item_id: string;
+  content_index: number;
+  audio_end_ms: number;
+}
+
+export interface ItemDeletedMessage extends ServerMessageBase {
+  type: "conversation.item.deleted";
+  item_id: string;
+}
+
+export interface ItemInputAudioTranscriptionCompletedMessage
+  extends ServerMessageBase {
+  type: "conversation.item.input_audio_transcription.completed";
+  item_id: string;
+  content_index: number;
+  transcript: string;
+}
+
+export interface ItemInputAudioTranscriptionFailedMessage
+  extends ServerMessageBase {
+  type: "conversation.item.input_audio_transcription.failed";
+  item_id: string;
+  content_index: number;
+  error: RealtimeError;
+}
+
+export type ResponseStatus =
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "incomplete"
+  | "failed";
+
+export interface ResponseCancelledDetails {
+  type: "cancelled";
+  reason: "turn_detected" | "client_cancelled";
+}
+
+export interface ResponseIncompleteDetails {
+  type: "incomplete";
+  reason: "max_output_tokens" | "content_filter";
+}
+
+export interface ResponseFailedDetails {
+  type: "failed";
+  error: RealtimeError;
+}
+
+export type ResponseStatusDetails =
+  | ResponseCancelledDetails
+  | ResponseIncompleteDetails
+  | ResponseFailedDetails;
+
+export interface Usage {
+  total_tokens: number;
+  input_tokens: number;
+  output_tokens: number;
+}
+
+export interface Response {
+  id: string;
+  status: ResponseStatus;
+  status_details?: ResponseStatusDetails;
+  output: ResponseItem[];
+  usage?: Usage;
+}
+
+export interface ResponseCreatedMessage extends ServerMessageBase {
+  type: "response.created";
+  response: Response;
+}
+
+export interface ResponseDoneMessage extends ServerMessageBase {
+  type: "response.done";
+  response: Response;
+}
+
+export interface ResponseOutputItemAddedMessage extends ServerMessageBase {
+  type: "response.output_item.added";
+  response_id: string;
+  output_index: number;
+  item: ResponseItem;
+}
+
+export interface ResponseOutputItemDoneMessage extends ServerMessageBase {
+  type: "response.output_item.done";
+  response_id: string;
+  output_index: number;
+  item: ResponseItem;
+}
+
+export interface ResponseContentPartAddedMessage extends ServerMessageBase {
+  type: "response.content_part.added";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index: number;
+  part: ResponseItemContentPart;
+}
+
+export interface ResponseContentPartDoneMessage extends ServerMessageBase {
+  type: "response.content_part.done";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index: number;
+  part: ResponseItemContentPart;
+}
+
+export interface ResponseTextDeltaMessage extends ServerMessageBase {
+  type: "response.text.delta";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index: number;
+  delta: string;
+}
+
+export interface ResponseTextDoneMessage extends ServerMessageBase {
+  type: "response.text.done";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index: number;
+  text: string;
+}
+
+export interface ResponseAudioTranscriptDeltaMessage extends ServerMessageBase {
+  type: "response.audio_transcript.delta";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index: number;
+  delta: string;
+}
+
+export interface ResponseAudioTranscriptDoneMessage extends ServerMessageBase {
+  type: "response.audio_transcript.done";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index: number;
+  transcript: string;
+}
+
+export interface ResponseAudioDeltaMessage extends ServerMessageBase {
+  type: "response.audio.delta";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index: number;
+  delta: string;
+}
+
+export interface ResponseAudioDoneMessage extends ServerMessageBase {
+  type: "response.audio.done";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index: number;
+}
+
+export interface ResponseFunctionCallArgumentsDeltaMessage
+  extends ServerMessageBase {
+  type: "response.function_call_arguments.delta";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  call_id: string;
+  delta: string;
+}
+
+export interface ResponseFunctionCallArgumentsDoneMessage
+  extends ServerMessageBase {
+  type: "response.function_call_arguments.done";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  call_id: string;
+  name: string;
+  arguments: string;
+}
+
+export interface RateLimits {
+  name: string;
+  limit: number;
+  remaining: number;
+  reset_seconds: number;
+}
+
+export interface RateLimitsUpdatedMessage extends ServerMessageBase {
+  type: "rate_limits.updated";
+  rate_limits: RateLimits[];
+}
+
+export type UserMessageType =
+  | SessionUpdateMessage
+  | InputAudioBufferAppendMessage
+  | InputAudioBufferCommitMessage
+  | InputAudioBufferClearMessage
+  | ItemCreateMessage
+  | ItemTruncateMessage
+  | ItemDeleteMessage
+  | ResponseCreateMessage
+  | ResponseCancelMessage;
+
+export type ServerMessageType =
+  | ErrorMessage
+  | SessionCreatedMessage
+  | SessionUpdatedMessage
+  | InputAudioBufferCommittedMessage
+  | InputAudioBufferClearedMessage
+  | InputAudioBufferSpeechStartedMessage
+  | InputAudioBufferSpeechStoppedMessage
+  | ItemCreatedMessage
+  | ItemTruncatedMessage
+  | ItemDeletedMessage
+  | ItemInputAudioTranscriptionCompletedMessage
+  | ItemInputAudioTranscriptionFailedMessage
+  | ResponseCreatedMessage
+  | ResponseDoneMessage
+  | ResponseOutputItemAddedMessage
+  | ResponseOutputItemDoneMessage
+  | ResponseContentPartAddedMessage
+  | ResponseContentPartDoneMessage
+  | ResponseTextDeltaMessage
+  | ResponseTextDoneMessage
+  | ResponseAudioTranscriptDeltaMessage
+  | ResponseAudioTranscriptDoneMessage
+  | ResponseAudioDeltaMessage
+  | ResponseAudioDoneMessage
+  | ResponseFunctionCallArgumentsDeltaMessage
+  | ResponseFunctionCallArgumentsDoneMessage
+  | RateLimitsUpdatedMessage;

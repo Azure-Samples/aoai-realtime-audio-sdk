@@ -3,18 +3,20 @@
 
 from typing import Annotated, Any, Literal, Optional, Union
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, model_validator
+
+from rtclient.util.model_helpers import ModelWithType
 
 Voice = Literal["alloy", "shimmer", "echo"]
 AudioFormat = Literal["pcm16", "g711-ulaw", "g711-alaw"]
 Modality = Literal["text", "audio"]
 
 
-class NoTurnDetection(BaseModel):
+class NoTurnDetection(ModelWithType):
     type: Literal["none"] = "none"
 
 
-class ServerVAD(BaseModel):
+class ServerVAD(ModelWithType):
     type: Literal["server_vad"] = "server_vad"
     threshold: Optional[Annotated[float, Field(strict=True, ge=0.0, le=1.0)]] = None
     prefix_padding_ms: Optional[int] = None
@@ -24,7 +26,7 @@ class ServerVAD(BaseModel):
 TurnDetection = Annotated[Union[NoTurnDetection, ServerVAD], Field(discriminator="type")]
 
 
-class FunctionToolChoice(BaseModel):
+class FunctionToolChoice(ModelWithType):
     type: Literal["function"] = "function"
     function: str
 
@@ -38,12 +40,15 @@ class InputAudioTranscription(BaseModel):
     model: Literal["whisper-1"]
 
 
-class ClientMessageBase(BaseModel):
+class ClientMessageBase(ModelWithType):
+    _is_azure: bool = False
     event_id: Optional[str] = None
 
 
 Temperature = Annotated[float, Field(strict=True, ge=0.6, le=1.2)]
 ToolsDefinition = list[Any]
+
+MaxTokensType = Union[int, Literal["inf"]]
 
 
 class SessionUpdateParams(BaseModel):
@@ -58,7 +63,7 @@ class SessionUpdateParams(BaseModel):
     tools: Optional[ToolsDefinition] = None
     tool_choice: Optional[ToolChoice] = None
     temperature: Optional[Temperature] = None
-    max_response_output_tokens: Optional[int] = None
+    max_response_output_tokens: Optional[MaxTokensType] = None
 
 
 class SessionUpdateMessage(ClientMessageBase):
@@ -68,6 +73,14 @@ class SessionUpdateMessage(ClientMessageBase):
 
     type: Literal["session.update"] = "session.update"
     session: SessionUpdateParams
+
+    @model_validator(mode="after")
+    def _azure_compatibility(self):
+        if not self._is_azure:
+            if self.session.turn_detection and self.session.turn_detection.type != "server_vad":
+                self.session.turn_detection  = None
+        return self
+
 
 
 class InputAudioBufferAppendMessage(ClientMessageBase):
@@ -100,18 +113,18 @@ class InputAudioBufferClearMessage(ClientMessageBase):
 MessageItemType = Literal["message"]
 
 
-class InputTextContentPart(BaseModel):
+class InputTextContentPart(ModelWithType):
     type: Literal["input_text"] = "input_text"
     text: str
 
 
-class InputAudioContentPart(BaseModel):
+class InputAudioContentPart(ModelWithType):
     type: Literal["input_audio"] = "input_audio"
     audio: str
     transcript: Optional[str] = None
 
 
-class OutputTextContentPart(BaseModel):
+class OutputTextContentPart(ModelWithType):
     type: Literal["text"] = "text"
     text: str
 
@@ -150,7 +163,7 @@ class AssistantMessageItem(BaseModel):
 MessageItem = Annotated[Union[SystemMessageItem, UserMessageItem, AssistantMessageItem], Field(discriminator="role")]
 
 
-class FunctionCallItem(BaseModel):
+class FunctionCallItem(ModelWithType):
     type: Literal["function_call"] = "function_call"
     id: Optional[str] = None
     name: str
@@ -159,7 +172,7 @@ class FunctionCallItem(BaseModel):
     status: Optional[ItemParamStatus] = None
 
 
-class FunctionCallOutputItem(BaseModel):
+class FunctionCallOutputItem(ModelWithType):
     type: Literal["function_call_output"] = "function_call_output"
     id: Optional[str] = None
     call_id: str
@@ -197,7 +210,7 @@ class ResponseCreateParams(BaseModel):
     modalities: Optional[set[Modality]] = None
     voice: Optional[Voice] = None
     temperature: Optional[Temperature] = None
-    max_output_tokens: Optional[int] = None
+    max_output_tokens: Optional[MaxTokensType] = None
     tools: Optional[ToolsDefinition] = None
     tool_choice: Optional[ToolChoice] = None
     output_audio_format: Optional[AudioFormat] = None
@@ -242,15 +255,20 @@ class Session(BaseModel):
     input_audio_format: AudioFormat
     output_audio_format: AudioFormat
     input_audio_transcription: Optional[InputAudioTranscription]
-    turn_detection: TurnDetection
+    turn_detection: Optional[TurnDetection]
     tools: ToolsDefinition
     tool_choice: ToolChoice
     temperature: Temperature
-    max_response_output_tokens: Optional[int]
+    max_response_output_tokens: Optional[MaxTokensType]
 
 
 class SessionCreatedMessage(ServerMessageBase):
     type: Literal["session.created"] = "session.created"
+    session: Session
+
+
+class SessionUpdatedMessage(ServerMessageBase):
+    type: Literal["session.updated"] = "session.updated"
     session: Session
 
 
@@ -584,6 +602,7 @@ ServerMessageType = Annotated[
     Union[
         ErrorMessage,
         SessionCreatedMessage,
+        SessionUpdatedMessage,
         InputAudioBufferCommittedMessage,
         InputAudioBufferClearedMessage,
         InputAudioBufferSpeechStartedMessage,
@@ -620,6 +639,8 @@ def create_message_from_dict(data: dict) -> ServerMessageType:
             return ErrorMessage(**data)
         case "session.created":
             return SessionCreatedMessage(**data)
+        case "session.updated":
+            return SessionUpdatedMessage(**data)
         case "input_audio_buffer.committed":
             return InputAudioBufferCommittedMessage(**data)
         case "input_audio_buffer.cleared":

@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "rtclient"
-version = "0.4.0"
+version = "0.4.1"
 description = "A client for the RT API"
 authors = ["Microsoft Corporation"]
 
@@ -38,3 +38,7 @@ extend-ignore = ["UP007"]
 [tool.black]
 line-length = 120
 target-version = ["py312"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

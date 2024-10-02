@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 import asyncio
 
 import pytest
@@ -25,11 +28,11 @@ def message_queue():
 @pytest.mark.asyncio
 async def test_receive_existing_message(message_queue):
     message = Message("1", "Hello")
-    message_queue.messages.append(message)
+    message_queue._push_back("1", message)
 
     result = await message_queue.receive("1")
     assert result == message
-    assert len(message_queue.messages) == 0
+    assert message_queue.queued_messages_count() == 0
 
 
 @pytest.mark.asyncio
@@ -46,7 +49,8 @@ async def test_receive_non_existing_message(message_queue):
 @pytest.mark.asyncio
 async def test_receive_multiple_messages(message_queue):
     messages = [Message("1", "First"), Message("2", "Second"), Message("3", "Third")]
-    message_queue.messages.extend(messages)
+    for message in messages:
+        message_queue._push_back(message.id, message)
 
     result1 = await message_queue.receive("2")
     result2 = await message_queue.receive("1")
@@ -55,7 +59,7 @@ async def test_receive_multiple_messages(message_queue):
     assert result1 == messages[1]
     assert result2 == messages[0]
     assert result3 == messages[2]
-    assert len(message_queue.messages) == 0
+    assert message_queue.queued_messages_count() == 0
 
 
 @pytest.mark.asyncio
@@ -91,8 +95,8 @@ async def test_multiple_receivers_same_id(message_queue):
 
 @pytest.mark.asyncio
 async def test_id_extractor_returns_none(message_queue):
-    message = Message("1", "Ignored")
-    message_queue.messages.append(message)
+    messages = [Message("1", "Ignored")]
+    message_queue.receive_delegate = lambda: asyncio.sleep(0, messages.pop(0) if messages else None)
 
     def id_extractor(msg):
         return None
@@ -101,7 +105,7 @@ async def test_id_extractor_returns_none(message_queue):
 
     result = await message_queue.receive("1")
     assert result is None
-    assert len(message_queue.messages) == 1
+    assert message_queue.queued_messages_count() == 0
 
 
 @pytest.mark.asyncio

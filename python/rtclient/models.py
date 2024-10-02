@@ -3,7 +3,7 @@
 
 from typing import Annotated, Any, Literal, Optional, Union
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, model_validator
 
 from rtclient.util.model_helpers import ModelWithType
 
@@ -41,6 +41,7 @@ class InputAudioTranscription(BaseModel):
 
 
 class ClientMessageBase(ModelWithType):
+    _is_azure: bool = False
     event_id: Optional[str] = None
 
 
@@ -72,6 +73,14 @@ class SessionUpdateMessage(ClientMessageBase):
 
     type: Literal["session.update"] = "session.update"
     session: SessionUpdateParams
+
+    @model_validator(mode="after")
+    def _azure_compatibility(self):
+        if not self._is_azure:
+            if self.session.turn_detection and self.session.turn_detection.type != "server_vad":
+                self.session.turn_detection  = None
+        return self
+
 
 
 class InputAudioBufferAppendMessage(ClientMessageBase):
@@ -246,7 +255,7 @@ class Session(BaseModel):
     input_audio_format: AudioFormat
     output_audio_format: AudioFormat
     input_audio_transcription: Optional[InputAudioTranscription]
-    turn_detection: TurnDetection
+    turn_detection: Optional[TurnDetection]
     tools: ToolsDefinition
     tool_choice: ToolChoice
     temperature: Temperature
@@ -631,6 +640,7 @@ def create_message_from_dict(data: dict) -> ServerMessageType:
         case "session.created":
             return SessionCreatedMessage(**data)
         case "session.updated":
+            print(data)
             return SessionUpdatedMessage(**data)
         case "input_audio_buffer.committed":
             return InputAudioBufferCommittedMessage(**data)

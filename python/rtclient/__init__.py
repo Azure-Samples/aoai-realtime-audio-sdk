@@ -162,6 +162,7 @@ class RTLowLevelClient:
             self.ws = await self._session.ws_connect("/v1/realtime", headers=headers, params={"model": self._model})
 
     async def send(self, message: UserMessageType):
+        message._is_azure = self._is_azure_openai
         message_json = message.model_dump_json(exclude_unset=True)
         await self.ws.send_str(message_json)
 
@@ -501,24 +502,32 @@ class RTClient:
         max_response_output_tokens: Optional[int] = None,
     ):
         self._transcription_enabled = input_audio_transcription is not None
-        await self._client.send(
-            SessionUpdateMessage(
-                session=SessionUpdateParams(
-                    model=model,
-                    modalities=modalities,
-                    voice=voice,
-                    instructions=instructions,
-                    input_audio_format=input_audio_format,
-                    output_audio_format=output_audio_format,
-                    input_audio_transcription=input_audio_transcription,
-                    turn_detection=turn_detection,
-                    tools=tools,
-                    tool_choice=tool_choice,
-                    temperature=temperature,
-                    max_response_output_tokens=max_response_output_tokens,
-                )
-            )
-        )
+        session_update_params = SessionUpdateParams()
+        if model is not None:
+            session_update_params.model = model
+        if modalities is not None:
+            session_update_params.modalities = modalities
+        if voice is not None:
+            session_update_params.voice = voice
+        if instructions is not None:
+            session_update_params.instructions = instructions
+        if input_audio_format is not None:
+            session_update_params.input_audio_format = input_audio_format
+        if output_audio_format is not None:
+            session_update_params.output_audio_format = output_audio_format
+        if input_audio_transcription is not None:
+            session_update_params.input_audio_transcription
+        if turn_detection is not None:
+            session_update_params.turn_detection = turn_detection
+        if tools is not None:
+            session_update_params.tools = tools
+        if tool_choice is not None:
+            session_update_params.tool_choice = tool_choice
+        if temperature is not None:
+            session_update_params.temperature = temperature
+        if max_response_output_tokens is not None:
+            session_update_params.max_response_output_tokens = max_response_output_tokens
+        await self._client.send(SessionUpdateMessage(session=session_update_params))
 
     async def send_audio(self, audio: bytes):
         base64_encoded = base64.b64encode(audio).decode("utf-8")

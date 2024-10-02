@@ -23,8 +23,20 @@ source venv/bin/activate
 
 ### 2. Install Dependencies
 
-Once the virtual environment is activated, install the required dependencies using `pip`:
+Once the virtual environment is activated, download the latest package wheels and install the required dependencies using `pip`:
 
+#### Windows
+
+```pwsh
+pwsh .\download-wheel.ps1
+```
+#### Linux / MacOS
+
+```bash
+./download-wheel.sh
+```
+
+Next, install the dependencies:
 ```sh
 pip install -r requirements.txt
 pip install rtclient-0.4.0-py3-none-any.whl

@@ -50,7 +50,7 @@ async def send_audio(client: RTClient, audio_file_path: str):
         chunk = audio_bytes[i : i + bytes_per_chunk]
         await client.send_audio(chunk)
 
-    # await client.commit_audio()
+    await client.commit_audio()
     await client.generate_response()
 
 

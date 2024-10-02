@@ -1,9 +1,10 @@
 $Owner = "Azure-Samples"
 $Repo = "aoai-realtime-audio-sdk"
 $Filter = "tgz"
+$Release = "v0.1.0-beta.1"
 $OutputDir = "."
 
-$apiUrl = "https://api.github.com/repos/$Owner/$Repo/releases/latest"
+$apiUrl = "https://api.github.com/repos/$Owner/$Repo/releases/tags/$Release"
 
 $release = Invoke-RestMethod -Uri $apiUrl -Headers @{"Accept"="application/vnd.github.v3+json"}
 

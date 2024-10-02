@@ -640,7 +640,6 @@ def create_message_from_dict(data: dict) -> ServerMessageType:
         case "session.created":
             return SessionCreatedMessage(**data)
         case "session.updated":
-            print(data)
             return SessionUpdatedMessage(**data)
         case "input_audio_buffer.committed":
             return InputAudioBufferCommittedMessage(**data)

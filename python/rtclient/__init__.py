@@ -397,8 +397,6 @@ class RTClient:
             "rate_limits.updated",
             "error",
         ]:
-            if message.type == "session.created":
-                print()
             return "SESSION"
         elif message.type in [
             "input_audio_buffer.speech_started",

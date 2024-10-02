@@ -6,6 +6,17 @@
 1. Node.js installation (https://nodejs.org)
 2. Environment that can run a localhost web server
 
+### Getting the library package
+
+For these samples to work, the client library package is required to be downloaded to this folder (alternatively, it can be build from source and copied here). For that we provide a couple of scripts:
+
+- [download-pkg.sh](./download-pkg.sh) for bash
+    > Note that this script requires `jq` to be installed.
+
+- [download-pkg.ps1](./download-pkg.ps1) for PowerShell
+
+These can be run by typing `./download-pkg.sh` or `pwsh ./download-pkg.ps1` respectively.
+
 ## Using the sample
 
 1. Navigate to this folder
@@ -35,6 +46,9 @@
 
 ## Code description
 
-This sample uses a custom client to simplify the usage of the realtime API. The client package is included  in this repo in the `rt-client-0.3.3.tgz` file.
+This sample uses a custom client to simplify the usage of the realtime API. The client package can be obtained by either building the [library](../standalone/) or by downloading it using the scripts provided:
+
+- [bash ](./download-pkg.sh) - Note that  this script requires `jq` to be installed.
+- [PowerShell](./download-pkg.ps1)
 
 The primary file demonstrating `/realtime` use is [src/main.ts](./src/main.ts); the first few functions demonstrate connecting to `/realtime` using the client, sending an inference configuration message, and then processing the send/receive of messages on the connection.

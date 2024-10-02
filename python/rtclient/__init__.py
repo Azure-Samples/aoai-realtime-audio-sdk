@@ -87,6 +87,7 @@ from rtclient.models import (
     ServerVAD,
     Session,
     SessionCreatedMessage,
+    SessionUpdatedMessage,
     SessionUpdateMessage,
     SessionUpdateParams,
     SystemContentPart,
@@ -161,7 +162,7 @@ class RTLowLevelClient:
             self.ws = await self._session.ws_connect("/v1/realtime", headers=headers, params={"model": self._model})
 
     async def send(self, message: UserMessageType):
-        message_json = message.model_dump_json()
+        message_json = message.model_dump_json(exclude_unset=True)
         await self.ws.send_str(message_json)
 
     async def recv(self) -> ServerMessageType | None:
@@ -620,6 +621,7 @@ __all__ = [
     "ErrorMessage",
     "Session",
     "SessionCreatedMessage",
+    "SessionUpdatedMessage",
     "InputAudioBufferCommittedMessage",
     "InputAudioBufferClearedMessage",
     "InputAudioBufferSpeechStartedMessage",

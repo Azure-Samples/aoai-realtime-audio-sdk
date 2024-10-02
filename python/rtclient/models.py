@@ -78,9 +78,8 @@ class SessionUpdateMessage(ClientMessageBase):
     def _azure_compatibility(self):
         if not self._is_azure:
             if self.session.turn_detection and self.session.turn_detection.type != "server_vad":
-                self.session.turn_detection  = None
+                self.session.turn_detection = None
         return self
-
 
 
 class InputAudioBufferAppendMessage(ClientMessageBase):

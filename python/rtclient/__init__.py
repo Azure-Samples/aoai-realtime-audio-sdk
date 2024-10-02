@@ -133,6 +133,7 @@ class RTLowLevelClient:
         self._session = ClientSession(base_url=self._url)
         self._model = model
         self._azure_deployment = azure_deployment
+        self.request_id: Optional[uuid.UUID] = None
 
     def _get_auth(self):
         if self._token_credential:
@@ -384,6 +385,10 @@ class RTClient:
 
         self._response_map: dict[str, str] = {}
         self._transcription_enabled = False
+
+    @property
+    def request_id(self) -> uuid.UUID | None:
+        return self._client.request_id
 
     async def _receive_message(self):
         async for message in self._client:

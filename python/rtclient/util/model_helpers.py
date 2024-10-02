@@ -4,7 +4,7 @@
 from pydantic import BaseModel, model_validator
 
 
-class WithType(BaseModel):
+class ModelWithType(BaseModel):
     @model_validator(mode="after")
     def _add_type(self):
         if "type" in self.model_fields:

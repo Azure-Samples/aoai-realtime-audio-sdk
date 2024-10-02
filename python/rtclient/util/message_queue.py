@@ -81,6 +81,9 @@ class MessageQueue(Generic[T]):
     def get_all_waiting_receivers_count(self) -> int:
         return sum(len(futures) for futures in self.waiting_receivers.values())
 
+    def queued_messages_count(self) -> int:
+        return sum(len(messages) for messages in self._stored_messages.values())
+
     async def receive(self, receiver_id: str) -> Optional[T]:
         found_message = self._pop_front(receiver_id)
         if found_message is not None:

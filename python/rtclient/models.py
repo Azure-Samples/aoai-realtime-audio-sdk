@@ -5,18 +5,18 @@ from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import AliasChoices, BaseModel, Field
 
-from rtclient.util.model_helpers import WithType
+from rtclient.util.model_helpers import ModelWithType
 
 Voice = Literal["alloy", "shimmer", "echo"]
 AudioFormat = Literal["pcm16", "g711-ulaw", "g711-alaw"]
 Modality = Literal["text", "audio"]
 
 
-class NoTurnDetection(BaseModel, WithType):
+class NoTurnDetection(ModelWithType):
     type: Literal["none"] = "none"
 
 
-class ServerVAD(BaseModel, WithType):
+class ServerVAD(ModelWithType):
     type: Literal["server_vad"] = "server_vad"
     threshold: Optional[Annotated[float, Field(strict=True, ge=0.0, le=1.0)]] = None
     prefix_padding_ms: Optional[int] = None
@@ -26,7 +26,7 @@ class ServerVAD(BaseModel, WithType):
 TurnDetection = Annotated[Union[NoTurnDetection, ServerVAD], Field(discriminator="type")]
 
 
-class FunctionToolChoice(BaseModel, WithType):
+class FunctionToolChoice(ModelWithType):
     type: Literal["function"] = "function"
     function: str
 
@@ -40,7 +40,7 @@ class InputAudioTranscription(BaseModel):
     model: Literal["whisper-1"]
 
 
-class ClientMessageBase(BaseModel):
+class ClientMessageBase(ModelWithType):
     event_id: Optional[str] = None
 
 
@@ -65,7 +65,7 @@ class SessionUpdateParams(BaseModel):
     max_response_output_tokens: Optional[MaxTokensType] = None
 
 
-class SessionUpdateMessage(ClientMessageBase, WithType):
+class SessionUpdateMessage(ClientMessageBase):
     """
     Update the session configuration.
     """
@@ -74,7 +74,7 @@ class SessionUpdateMessage(ClientMessageBase, WithType):
     session: SessionUpdateParams
 
 
-class InputAudioBufferAppendMessage(ClientMessageBase, WithType):
+class InputAudioBufferAppendMessage(ClientMessageBase):
     """
     Append audio data to the user audio buffer, this should be in the format specified by
     input_audio_format in the session config.
@@ -84,7 +84,7 @@ class InputAudioBufferAppendMessage(ClientMessageBase, WithType):
     audio: str
 
 
-class InputAudioBufferCommitMessage(ClientMessageBase, WithType):
+class InputAudioBufferCommitMessage(ClientMessageBase):
     """
     Commit the pending user audio buffer, which creates a user message item with the audio content
     and clears the buffer.
@@ -93,7 +93,7 @@ class InputAudioBufferCommitMessage(ClientMessageBase, WithType):
     type: Literal["input_audio_buffer.commit"] = "input_audio_buffer.commit"
 
 
-class InputAudioBufferClearMessage(ClientMessageBase, WithType):
+class InputAudioBufferClearMessage(ClientMessageBase):
     """
     Clear the user audio buffer, discarding any pending audio data.
     """
@@ -104,18 +104,18 @@ class InputAudioBufferClearMessage(ClientMessageBase, WithType):
 MessageItemType = Literal["message"]
 
 
-class InputTextContentPart(BaseModel, WithType):
+class InputTextContentPart(ModelWithType):
     type: Literal["input_text"] = "input_text"
     text: str
 
 
-class InputAudioContentPart(BaseModel, WithType):
+class InputAudioContentPart(ModelWithType):
     type: Literal["input_audio"] = "input_audio"
     audio: str
     transcript: Optional[str] = None
 
 
-class OutputTextContentPart(BaseModel, WithType):
+class OutputTextContentPart(ModelWithType):
     type: Literal["text"] = "text"
     text: str
 
@@ -154,7 +154,7 @@ class AssistantMessageItem(BaseModel):
 MessageItem = Annotated[Union[SystemMessageItem, UserMessageItem, AssistantMessageItem], Field(discriminator="role")]
 
 
-class FunctionCallItem(BaseModel, WithType):
+class FunctionCallItem(ModelWithType):
     type: Literal["function_call"] = "function_call"
     id: Optional[str] = None
     name: str
@@ -163,7 +163,7 @@ class FunctionCallItem(BaseModel, WithType):
     status: Optional[ItemParamStatus] = None
 
 
-class FunctionCallOutputItem(BaseModel, WithType):
+class FunctionCallOutputItem(ModelWithType):
     type: Literal["function_call_output"] = "function_call_output"
     id: Optional[str] = None
     call_id: str
@@ -174,20 +174,20 @@ class FunctionCallOutputItem(BaseModel, WithType):
 Item = Annotated[Union[MessageItem, FunctionCallItem, FunctionCallOutputItem], Field(discriminator="type")]
 
 
-class ItemCreateMessage(ClientMessageBase, WithType):
+class ItemCreateMessage(ClientMessageBase):
     type: Literal["conversation.item.create"] = "conversation.item.create"
     previous_item_id: Optional[str] = None
     item: Item
 
 
-class ItemTruncateMessage(ClientMessageBase, WithType):
+class ItemTruncateMessage(ClientMessageBase):
     type: Literal["conversation.item.truncate"] = "conversation.item.truncate"
     item_id: str
     content_index: int
     audio_end_ms: int
 
 
-class ItemDeleteMessage(ClientMessageBase, WithType):
+class ItemDeleteMessage(ClientMessageBase):
     type: Literal["conversation.item.delete"] = "conversation.item.delete"
     item_id: str
 
@@ -207,7 +207,7 @@ class ResponseCreateParams(BaseModel):
     output_audio_format: Optional[AudioFormat] = None
 
 
-class ResponseCreateMessage(ClientMessageBase, WithType):
+class ResponseCreateMessage(ClientMessageBase):
     """
     Trigger model inference to generate a model turn.
     """
@@ -216,7 +216,7 @@ class ResponseCreateMessage(ClientMessageBase, WithType):
     response: Optional[ResponseCreateParams] = None
 
 
-class ResponseCancelMessage(ClientMessageBase, WithType):
+class ResponseCancelMessage(ClientMessageBase):
     type: Literal["response.cancel"] = "response.cancel"
 
 

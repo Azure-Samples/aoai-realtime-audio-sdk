@@ -519,7 +519,7 @@ class RTClient:
         if output_audio_format is not None:
             session_update_params.output_audio_format = output_audio_format
         if input_audio_transcription is not None:
-            session_update_params.input_audio_transcription
+            session_update_params.input_audio_transcription = input_audio_transcription
         if turn_detection is not None:
             session_update_params.turn_detection = turn_detection
         if tools is not None:

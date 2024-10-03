@@ -3,7 +3,14 @@
 
 from typing import Annotated, Any, Literal, Optional, Union
 
-from pydantic import AliasChoices, BaseModel, Field, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    Field,
+    SerializationInfo,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
 from rtclient.util.model_helpers import ModelWithType
 
@@ -74,12 +81,18 @@ class SessionUpdateMessage(ClientMessageBase):
     type: Literal["session.update"] = "session.update"
     session: SessionUpdateParams
 
-    @model_validator(mode="after")
-    def _azure_compatibility(self):
+    @model_serializer(mode="wrap")
+    def _azure_compatibility(self, next: SerializerFunctionWrapHandler, info: SerializationInfo):
+        serialized = next(self)
         if not self._is_azure:
-            if self.session.turn_detection and self.session.turn_detection.type != "server_vad":
-                self.session.turn_detection = None
-        return self
+            if (
+                self.session is not None
+                and self.session.turn_detection is not None
+                and self.session.turn_detection.type == "none"
+            ):
+                serialized["session"]["turn_detection"] = None
+
+        return serialized
 
 
 class InputAudioBufferAppendMessage(ClientMessageBase):

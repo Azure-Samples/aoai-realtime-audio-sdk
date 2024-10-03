@@ -23,18 +23,15 @@ source venv/bin/activate
 
 ### 2. Install Dependencies
 
-Once the virtual environment is activated, download the latest package wheels and install the required dependencies using `pip`:
+Once the virtual environment is activated, download the latest package wheels using the provided scripts and install the required dependencies using `pip`:
 
-#### Windows
+- [download-pkg.sh](./download-pkg.sh) for bash
+    > Note that this script requires `jq` to be installed.
 
-```pwsh
-pwsh .\download-wheel.ps1
-```
-#### Linux / MacOS
+- [download-pkg.ps1](./download-pkg.ps1) for PowerShell
 
-```bash
-./download-wheel.sh
-```
+These can be run by typing `./download-pkg.sh` or `pwsh ./download-pkg.ps1` respectively.
+
 
 Next, install the dependencies:
 ```sh

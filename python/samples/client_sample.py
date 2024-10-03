@@ -78,7 +78,7 @@ async def receive_item(item: RTOutputItem, out_dir: str):
             text_data = (text_data or "") + chunk.data
     if text_data is not None:
         print(prefix, f"Text: {text_data}")
-        with open(os.path.join(out_dir, f"{item.id}.text.txt"), "w") as out:
+        with open(os.path.join(out_dir, f"{item.id}.text.txt"), "w", encoding="utf-8") as out:
             out.write(text_data)
     if audio_data is not None:
         print(prefix, f"Audio received with length: {len(audio_data)}")
@@ -87,11 +87,11 @@ async def receive_item(item: RTOutputItem, out_dir: str):
             sf.write(out, audio_array, samplerate=24000)
     if audio_transcript is not None:
         print(prefix, f"Audio Transcript: {audio_transcript}")
-        with open(os.path.join(out_dir, f"{item.id}.audio_transcript.txt"), "w") as out:
+        with open(os.path.join(out_dir, f"{item.id}.audio_transcript.txt"), "w", encoding="utf-8") as out:
             out.write(audio_transcript)
     if arguments is not None:
         print(prefix, f"Tool Call Arguments: {arguments}")
-        with open(os.path.join(out_dir, f"{item.id}.tool.streamed.json"), "w") as out:
+        with open(os.path.join(out_dir, f"{item.id}.tool.streamed.json"), "w", encoding="utf-8") as out:
             out.write(arguments)
 
 

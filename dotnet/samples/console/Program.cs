@@ -41,7 +41,7 @@ public class Program
         await session.AddItemAsync(
             ConversationItem.CreateUserMessage(["I'm trying to decide what to wear on my trip."]));
 
-        string inputAudioPath = Path.Join("..", "audio_weather_alaw.wav");
+        string inputAudioPath = FindFile("audio_weather_alaw.wav");
         using Stream inputAudioStream = File.OpenRead(inputAudioPath);
         _ = session.SendAudioAsync(inputAudioStream);
 
@@ -258,5 +258,21 @@ public class Program
             }
             """)
         };
+    }
+
+    private static string FindFile(string fileName)
+    {
+        for (string currentDirectory = Directory.GetCurrentDirectory();
+             currentDirectory != null && currentDirectory != Path.GetPathRoot(currentDirectory);
+             currentDirectory = Directory.GetParent(currentDirectory)?.FullName)
+        {
+            string filePath = Path.Combine(currentDirectory, fileName);
+            if (File.Exists(filePath))
+            {
+                return filePath;
+            }
+        }
+
+        throw new FileNotFoundException($"File '{fileName}' not found.");
     }
 }

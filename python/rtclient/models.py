@@ -12,18 +12,18 @@ from pydantic import (
     model_serializer,
 )
 
-from rtclient.util.model_helpers import ModelWithType
+from rtclient.util.model_helpers import ModelWithDefaults
 
 Voice = Literal["alloy", "shimmer", "echo"]
 AudioFormat = Literal["pcm16", "g711-ulaw", "g711-alaw"]
 Modality = Literal["text", "audio"]
 
 
-class NoTurnDetection(ModelWithType):
+class NoTurnDetection(ModelWithDefaults):
     type: Literal["none"] = "none"
 
 
-class ServerVAD(ModelWithType):
+class ServerVAD(ModelWithDefaults):
     type: Literal["server_vad"] = "server_vad"
     threshold: Optional[Annotated[float, Field(strict=True, ge=0.0, le=1.0)]] = None
     prefix_padding_ms: Optional[int] = None
@@ -33,7 +33,7 @@ class ServerVAD(ModelWithType):
 TurnDetection = Annotated[Union[NoTurnDetection, ServerVAD], Field(discriminator="type")]
 
 
-class FunctionToolChoice(ModelWithType):
+class FunctionToolChoice(ModelWithDefaults):
     type: Literal["function"] = "function"
     function: str
 
@@ -47,7 +47,7 @@ class InputAudioTranscription(BaseModel):
     model: Literal["whisper-1"]
 
 
-class ClientMessageBase(ModelWithType):
+class ClientMessageBase(ModelWithDefaults):
     _is_azure: bool = False
     event_id: Optional[str] = None
 
@@ -125,18 +125,18 @@ class InputAudioBufferClearMessage(ClientMessageBase):
 MessageItemType = Literal["message"]
 
 
-class InputTextContentPart(ModelWithType):
+class InputTextContentPart(ModelWithDefaults):
     type: Literal["input_text"] = "input_text"
     text: str
 
 
-class InputAudioContentPart(ModelWithType):
+class InputAudioContentPart(ModelWithDefaults):
     type: Literal["input_audio"] = "input_audio"
     audio: str
     transcript: Optional[str] = None
 
 
-class OutputTextContentPart(ModelWithType):
+class OutputTextContentPart(ModelWithDefaults):
     type: Literal["text"] = "text"
     text: str
 
@@ -148,7 +148,7 @@ AssistantContentPart = OutputTextContentPart
 ItemParamStatus = Literal["completed", "incomplete"]
 
 
-class SystemMessageItem(BaseModel):
+class SystemMessageItem(ModelWithDefaults):
     type: MessageItemType = "message"
     role: Literal["system"] = "system"
     id: Optional[str] = None
@@ -156,7 +156,7 @@ class SystemMessageItem(BaseModel):
     status: Optional[ItemParamStatus] = None
 
 
-class UserMessageItem(BaseModel):
+class UserMessageItem(ModelWithDefaults):
     type: MessageItemType = "message"
     role: Literal["user"] = "user"
     id: Optional[str] = None
@@ -164,7 +164,7 @@ class UserMessageItem(BaseModel):
     status: Optional[ItemParamStatus] = None
 
 
-class AssistantMessageItem(BaseModel):
+class AssistantMessageItem(ModelWithDefaults):
     type: MessageItemType = "message"
     role: Literal["assistant"] = "assistant"
     id: Optional[str] = None
@@ -175,7 +175,7 @@ class AssistantMessageItem(BaseModel):
 MessageItem = Annotated[Union[SystemMessageItem, UserMessageItem, AssistantMessageItem], Field(discriminator="role")]
 
 
-class FunctionCallItem(ModelWithType):
+class FunctionCallItem(ModelWithDefaults):
     type: Literal["function_call"] = "function_call"
     id: Optional[str] = None
     name: str
@@ -184,7 +184,7 @@ class FunctionCallItem(ModelWithType):
     status: Optional[ItemParamStatus] = None
 
 
-class FunctionCallOutputItem(ModelWithType):
+class FunctionCallOutputItem(ModelWithDefaults):
     type: Literal["function_call_output"] = "function_call_output"
     id: Optional[str] = None
     call_id: str

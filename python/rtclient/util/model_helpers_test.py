@@ -1,17 +1,23 @@
-from typing import Literal
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
-from model_helpers import ModelWithType
+from typing import Optional
 
-
-class ModelWithType(ModelWithType):
-    type: Literal["object_type"] = "object_type"
-
-
-def test_with_type_field():
-    instance = ModelWithType()
-    assert instance.type == "object_type"
+from model_helpers import ModelWithDefaults
 
 
-def test_serialize_with_type_field():
-    instance = ModelWithType()
-    assert instance.model_dump() == {"type": "object_type"}
+class Bar(ModelWithDefaults):
+    foo: Optional[int] = None
+    bar: Optional[float] = 3.14
+    baz: int = 42
+
+
+def test_with_defaults():
+    instance = Bar()
+    assert instance.foo is None
+    assert instance.baz == 42
+
+
+def test_serialize_with_defaults():
+    instance = Bar()
+    assert instance.model_dump(exclude_unset=True) == {"bar": 3.14, "baz": 42}

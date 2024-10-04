@@ -4,9 +4,11 @@
 from pydantic import BaseModel, model_validator
 
 
-class ModelWithType(BaseModel):
+class ModelWithDefaults(BaseModel):
     @model_validator(mode="after")
-    def _add_type(self):
-        if "type" in self.model_fields:
-            self.type = self.model_fields["type"].default
+    def _add_defaults(self):
+        for field in self.model_fields:
+            if self.model_fields[field].default is not None:
+                if not hasattr(self, field) or getattr(self, field) == self.model_fields[field].default:
+                    setattr(self, field, self.model_fields[field].default)
         return self

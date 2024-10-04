@@ -12,27 +12,33 @@ Example output:
 
 ```
 PS D:\s\dotnet\samples\console> dotnet run
-Connecting using Azure resource URI: https://my-aoai-resource.openai.azure.com
-<<< Session started. ID: sess_ABBdREQ0NWCCIV00rPAwP
+ * Connecting to Azure OpenAI endpoint (AZURE_OPENAI_ENDPOINT): https://my-aoai-resource-eastus2.openai.azure.com/
+ * Using API key (AZURE_OPENAI_API_KEY): abc12**
+ * Using deployment (AZURE_OPENAI_DEPLOYMENT): my-gpt-4o-realtime-preview-deployment
+<<< Session started. ID: sess_AERevEfOC3pSdIdCcJRKo
 
   -- Voice activity detection started at 928 ms
   -- Voice activity detection ended at 3040 ms
   -- Begin streaming of new item
-Ahoy! Let's see what the weather be like in San Francisco. I'll find that out for ye right now! *yo-ho-ho* Calling the weather service for ye!
-  -- Item finished, response_id=resp_ABBdS1xYc8TZWsCwbUYwU
-    + [assistant]: Ahoy! Let's see what the weather be like in San Francisco. I'll find that out for ye right now! *yo-ho-ho* Calling the weather service for ye!
+Arrr, let me check the
+  -- User audio transcript: What's the weather like in San Francisco right now?
+
+
+ weather in San Francisco for ye!
+  -- Item streaming finished, response_id=resp_AERewVPR59Ab5YSQteWaj
+    + [assistant]: Arrr, let me check the weather in San Francisco for ye!
   -- Begin streaming of new item
-{"location":"San Francisco, CA","unit":"f"}
-  -- Item finished, response_id=resp_ABBdS1xYc8TZWsCwbUYwU
-    + Tool invoked by item: get_weather_for_location
+    get_weather_for_location: {"location":"San Francisco, CA","unit":"f"}
+  -- Item streaming finished, response_id=resp_AERewVPR59Ab5YSQteWaj
+    + Responding to tool invoked by item: get_weather_for_location
   -- Model turn generation finished. Status: completed
   -- Ending client turn for pending tool responses
   -- Begin streaming of new item
-Arrr! The weather in San Francisco be a balmy 70 degrees Fahrenheit and sunny! A perfect day for sailing the seas or wandering the shore! Ye might want to dress light, but keep a jacket close by, as the sea breeze can be cool.
-  -- Item finished, response_id=resp_ABBdVXNGDK6PQhzWH3Qnr
-    + [assistant]: Arrr! The weather in San Francisco be a balmy 70 degrees Fahrenheit and sunny! A perfect day for sailing the seas or wandering the shore! Ye might want to dress light, but keep a jacket close by, as the sea breeze can be cool.
+The weather in San Francisco be a balmy 70 degrees Fahrenheit and sunny. A fine day to be out and about! Ye might want to wear somethin' light and comfortable, but be prepared for a bit of a chill if the wind picks up near the bay. Arrr ye needin' anything else?
+  -- Item streaming finished, response_id=resp_AERexJpcwMmmTBRvINQOY
+    + [assistant]: The weather in San Francisco be a balmy 70 degrees Fahrenheit and sunny. A fine day to be out and about! Ye might want to wear somethin' light and comfortable, but be prepared for a bit of a chill if the wind picks up near the bay. Arrr ye needin' anything else?
   -- Model turn generation finished. Status: completed
-Raw output audio written to output.raw: 1339200 bytes
+Raw output audio written to output.raw: 2652000 bytes
 ```
 
 ## Code explanation/walkthrough
@@ -42,11 +48,6 @@ Support for the `/realtime` API is provisionally provided via a new `RealtimeCon
 In accordance with its prerelease status, a new `OPENAI002` experimental ID is added and must be suppressed, as in the example via `#pragma warning disable OPENAI002`, to acknowledge the subject-to-change nature of the surface.
 
 Client configuration is achieved like other OpenAI .NET clients: instantiating a top-level `OpenAIClient` (`AzureOpenAIClient` when using Azure OpenAI) and then calling `.GetRealtimeConversationClient()` to retrieve the scenario client for `/realtime`. The example uses the standard `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY` environment variables as the source for connection details and can also be configured to use token-based Entra authentication (against Azure OpenAI Service resources with managed identity enabled) via the `Azure.Identity` `DefaultAzureCredential` type.
-
-Conceptually:
-- Connecting to `/realtime` establishes **a conversation session**.
-- Conversation sessions have **one or more distinct conversations** that share access to a user audio input buffer and (if enabled) a voice activity detection component
-- Sessions **create a `"default"` conversation** automatically -- additional conversations cannot yet be created or managed
 
 A `/realtime` connection session is managed via the `RealtimeConversationSession` type, an `IDisposable` class created by calling `ConversationClient.StartConversationSessionAsync()`. `ConversationSessionOptions` is the type that encapsulates additional, non-required configuration for the connection-wide session, including input and output audio formats, turn end detection behavior, instructions, and tools. After a session is created with `StartConversationSessionAsync()`, `session.ConfigureSessionAsync(sessionOptions)` can be used to configure these details.
 

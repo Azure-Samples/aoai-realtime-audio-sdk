@@ -17,9 +17,9 @@ from rtclient import InputTextContentPart, RTClient, RTInputItem, RTOutputItem, 
 start_time = time.time()
 
 
-def log(message):
+def log(*args):
     elapsed_time_ms = int((time.time() - start_time) * 1000)
-    log(f"{elapsed_time_ms} [ms]: {message}", flush=True)
+    log(f"{elapsed_time_ms} [ms]: ", *args)
 
 
 async def receive_control(client: RTClient):

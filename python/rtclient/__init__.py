@@ -138,10 +138,10 @@ class RTLowLevelClient:
     def _user_agent(self):
         return "ms-rtclient-0.4.3"
 
-    def _get_auth(self):
+    async def _get_auth(self):
         if self._token_credential:
             scopes = ["https://cognitiveservices.azure.com/.default"]
-            token = self._token_credential.get_token(scopes)
+            token = await self._token_credential.get_token(scopes)
             return {"Authorization": f"Bearer {token.token}"}
         elif self._key_credential:
             return {"api-key": self._key_credential.key}
@@ -151,9 +151,9 @@ class RTLowLevelClient:
     async def connect(self):
         self.request_id = uuid.uuid4()
         if self._is_azure_openai:
-            auth_headers = self._get_auth()
-            headers = {"x-ms-client-request-id": str(self.request_id), "User-Agent": self._user_agent(), **auth_headers}
-            self.ws = await self._session.ws_connect(
+           auth_headers = await self._get_auth()
+           headers = {"x-ms-client-request-id": str(self.request_id), "User-Agent": self._user_agent(), **auth_headers}
+           self.ws = await self._session.ws_connect(
                 "/openai/realtime",
                 headers=headers,
                 params={"deployment": self._azure_deployment, "api-version": "2024-10-01-preview"},

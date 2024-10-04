@@ -1,11 +1,12 @@
-# OpenAI .NET: /realtime basic console app
+# OpenAI .NET: /realtime basic console app (file-based)
 
 This short application demonstrates a simple two-turn use of the `/realtime` endpoint, applying audio input from a file and a single call to a function tool.
 
 ## Usage
 
 1. Set the `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY` environment variables to match your `/realtime`-enabled Azure OpenAI resource
-  - Alternatively, if your Azure OpenAI Service resource is configured for managed identity, you can modify the `useEntraAuthenticationForAzure` value in the application to use `DefaultAzureCredential`
+  - Alternatively, if your Azure OpenAI Service resource is configured for managed identity, you can set the `AZURE_OPENAI_USE_ENTRA` environment variable to `true` to employ `DefaultAzureCredential` token-based authentication
+  - If you'd like to use the non-Azure OpenAI v1 endpoint, don't set `AZURE_OPENAI_ENDPOINT` and use `OPENAI_API_KEY` as the source for authentication, instead
 2. `dotnet run` (or build/run from `RealtimeConsoleApp.csproj`)
 
 Example output:

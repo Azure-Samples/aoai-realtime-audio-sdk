@@ -5,7 +5,8 @@ This short console application demonstrates an interactive experience using the 
 ## Usage
 
 1. Set the `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY` environment variables to match your `/realtime`-enabled Azure OpenAI resource
-  - Alternatively, if your Azure OpenAI Service resource is configured for managed identity, you can modify the `useEntraAuthenticationForAzure` value in the application to use `DefaultAzureCredential`
+  - Alternatively, if your Azure OpenAI Service resource is configured for managed identity, you can set the `AZURE_OPENAI_USE_ENTRA` environment variable to `true` to employ `DefaultAzureCredential` token-based authentication
+  - If you'd like to use the non-Azure OpenAI v1 endpoint, don't set `AZURE_OPENAI_ENDPOINT` and use `OPENAI_API_KEY` as the source for authentication, instead
 2. `dotnet run` (or build/run from `RealtimeInteractiveConsole.csproj`)
 
 Example output:
@@ -36,7 +37,7 @@ Because they make up everything! 😄
 
 ## Code explanation/walkthrough
 
-For a more detailed walkthrough of core concepts, please see [the README for the file-based sample](../console-from-file/README>md). This README will focus on the interactive components.
+For a more detailed walkthrough of core concepts, please see [the README for the file-based sample](../console-from-file/README.md). This README will focus on the interactive components.
 
 This sample uses two rudimentary multimedia abstractions built atop the `NAudio` library:
 - `MicrophoneAudioStream`, which presents `pcm16` (24 KHz, 16-bit mono PCM) audio from the system default capture device as a `Stream`

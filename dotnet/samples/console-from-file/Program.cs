@@ -264,7 +264,7 @@ public class Program
     {
         for (string currentDirectory = Directory.GetCurrentDirectory();
              currentDirectory != null && currentDirectory != Path.GetPathRoot(currentDirectory);
-             currentDirectory = Directory.GetParent(currentDirectory)?.FullName)
+             currentDirectory = Directory.GetParent(currentDirectory)?.FullName!)
         {
             string filePath = Path.Combine(currentDirectory, fileName);
             if (File.Exists(filePath))

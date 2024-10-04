@@ -1,4 +1,4 @@
-# OpenAI .NET: /realtime basic console app with live audio input and ouptut
+# OpenAI .NET: /realtime basic console app with live audio input and output
 
 This short console application demonstrates an interactive experience using the `NAudio` library (https://github.com/naudio/NAudio) for input and output from the default microphone and speaker. 
 

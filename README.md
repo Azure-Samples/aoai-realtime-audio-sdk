@@ -1,6 +1,6 @@
 # Azure OpenAI GPT-4o Audio and /realtime: Public Preview Documentation
 
-Welcome to the Public Preview for Azure OpenAI `/realtime` using `gpt-4o-realtime-preview`!
+Welcome to the Public Preview for Azure OpenAI `/realtime` using `gpt-4o-realtime-preview`! This repository provides documentation, standalone libraries, and sample code for using `/realtime` -- applicable to both Azure OpenAI and standard OpenAI v1 endpoint use.
 
 ## Overview: what's /realtime?
 
@@ -229,3 +229,11 @@ As a single response can feature multiple tool calls, a bit of statefulness is i
 ### Using an audio file as input, I see many responses or my responses get stuck
 
 When using lengthy audio input that's significantly faster than real time -- such as from an audio file with natural pauses -- server voice activity detection can trigger many responses in rapid succession and this can cause responses to become unreliable. It's highly recommended to disable voice activity detection (`"turn_detection": { "type": "none" }` (`"turn_detection": null` in newer protocol versions) in `session.update`) for such scenarios and instead manually invoke `response.create` when all audio has been transmitted.
+
+### What's the long-term plan for library support?
+
+The shortest answer: many details are still TBD.
+
+- **.NET** (https://github.com/openai/openai-dotnet): preview support for `/realtime` is available now, beginning with the `2.1.0-beta.1` release. SDK representations within the beta library version are subject to continued development, refinement, and adaptation -- some number of breaking changes across preview versions are expected.
+- **Python** and **JavaScript**: As described [in the "What's next" section of the Realtime announcement](https://openai.com/index/introducing-the-realtime-api/#whats_next), official library support (via https://github.com/openai/openai-python and https://github.com/openai/openai-node) is coming at a later date. The timelines and specifics will be shared a bit further on, but we should expect converged support for `/realtime` alongside other client capabilities like `/chat/completions` in the future. In the meantime, this repository provides standalone libraries (compatible with both standard OpenAI and Azure OpenAI) with samples and will continue to be expanded and improved.
+- **Java** and **Go**: Client library support discussions are underway and we hope to have more to share soon.

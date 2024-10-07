@@ -10,6 +10,12 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
+        // Simpler more readable version of the Realtime API usage
+        // Decomposed into smaller functions for readability
+        // splited the ClientProvider into a separate class file for better organization
+        // the updated version of the code is in the RealtimeChatVoiceExecutor_V2.cs file
+        await RealtimeChatVoiceExecutor_V2.Execute();
+        
         // First, we create a client according to configured environment variables (see end of file) and then start
         // a new conversation session.
         RealtimeConversationClient client = GetConfiguredClient();

@@ -8,7 +8,8 @@ from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable
 from typing import Literal, Optional
 
 from aiohttp import ClientSession, WSMsgType
-from azure.core.credentials import AzureKeyCredential, TokenCredential
+from azure.core.credentials import AzureKeyCredential
+from azure.core.credentials_async import AsyncTokenCredential
 
 from rtclient.models import (
     AssistantContentPart,
@@ -110,7 +111,7 @@ class RTLowLevelClient:
     def __init__(
         self,
         url: Optional[str] = None,
-        token_credential: Optional[TokenCredential] = None,
+        token_credential: Optional[AsyncTokenCredential] = None,
         key_credential: Optional[AzureKeyCredential] = None,
         model: Optional[str] = None,
         azure_deployment: Optional[str] = None,
@@ -140,8 +141,8 @@ class RTLowLevelClient:
 
     async def _get_auth(self):
         if self._token_credential:
-            scopes = ["https://cognitiveservices.azure.com/.default"]
-            token = await self._token_credential.get_token(scopes)
+            scope = "https://cognitiveservices.azure.com/.default"
+            token = await self._token_credential.get_token(scope)
             return {"Authorization": f"Bearer {token.token}"}
         elif self._key_credential:
             return {"api-key": self._key_credential.key}
@@ -376,7 +377,7 @@ class RTClient:
     def __init__(
         self,
         url: Optional[str] = None,
-        token_credential: Optional[TokenCredential] = None,
+        token_credential: Optional[AsyncTokenCredential] = None,
         key_credential: Optional[AzureKeyCredential] = None,
         model: Optional[str] = None,
         azure_deployment: Optional[str] = None,

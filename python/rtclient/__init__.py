@@ -2,15 +2,14 @@
 # Licensed under the MIT License.
 
 import base64
-import json
 import uuid
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable
 from typing import Literal, Optional
 
-from aiohttp import ClientSession, WSMsgType
 from azure.core.credentials import AzureKeyCredential
 from azure.core.credentials_async import AsyncTokenCredential
 
+from rtclient.low_level_client import RTLowLevelClient
 from rtclient.models import (
     AssistantContentPart,
     AssistantMessageItem,
@@ -106,107 +105,6 @@ from rtclient.models import (
 )
 from rtclient.util.message_queue import MessageQueue
 
-
-class RTLowLevelClient:
-    def __init__(
-        self,
-        url: Optional[str] = None,
-        token_credential: Optional[AsyncTokenCredential] = None,
-        key_credential: Optional[AzureKeyCredential] = None,
-        model: Optional[str] = None,
-        azure_deployment: Optional[str] = None,
-    ):
-        self._is_azure_openai = url is not None
-        if self._is_azure_openai:
-            if key_credential is None and token_credential is None:
-                raise ValueError("key_credential or token_credential is required for Azure OpenAI")
-            if azure_deployment is None:
-                raise ValueError("azure_deployment is required for Azure OpenAI")
-        else:
-            if key_credential is None:
-                raise ValueError("key_credential is required for OpenAI")
-            if model is None:
-                raise ValueError("model is required for OpenAI")
-
-        self._url = url if self._is_azure_openai else "wss://api.openai.com"
-        self._token_credential = token_credential
-        self._key_credential = key_credential
-        self._session = ClientSession(base_url=self._url)
-        self._model = model
-        self._azure_deployment = azure_deployment
-        self.request_id: Optional[uuid.UUID] = None
-
-    def _user_agent(self):
-        return "ms-rtclient-0.4.3"
-
-    async def _get_auth(self):
-        if self._token_credential:
-            scope = "https://cognitiveservices.azure.com/.default"
-            token = await self._token_credential.get_token(scope)
-            return {"Authorization": f"Bearer {token.token}"}
-        elif self._key_credential:
-            return {"api-key": self._key_credential.key}
-        else:
-            return {}
-
-    async def connect(self):
-        self.request_id = uuid.uuid4()
-        if self._is_azure_openai:
-           auth_headers = await self._get_auth()
-           headers = {"x-ms-client-request-id": str(self.request_id), "User-Agent": self._user_agent(), **auth_headers}
-           self.ws = await self._session.ws_connect(
-                "/openai/realtime",
-                headers=headers,
-                params={"deployment": self._azure_deployment, "api-version": "2024-10-01-preview"},
-            )
-        else:
-            headers = {
-                "Authorization": f"Bearer {self._key_credential.key}",
-                "openai-beta": "realtime=v1",
-                "User-Agent": self._user_agent(),
-            }
-            self.ws = await self._session.ws_connect("/v1/realtime", headers=headers, params={"model": self._model})
-
-    async def send(self, message: UserMessageType):
-        message._is_azure = self._is_azure_openai
-        message_json = message.model_dump_json(exclude_unset=True)
-        await self.ws.send_str(message_json)
-
-    async def recv(self) -> ServerMessageType | None:
-        if self.ws.closed:
-            return None
-        websocket_message = await self.ws.receive()
-        if websocket_message.type == WSMsgType.TEXT:
-            data = json.loads(websocket_message.data)
-            return create_message_from_dict(data)
-        else:
-            return None
-
-    def __aiter__(self) -> AsyncIterator[ServerMessageType | None]:
-        return self
-
-    async def __anext__(self):
-        message = await self.recv()
-        if message is None:
-            raise StopAsyncIteration
-        return message
-
-    async def close(self):
-        await self.ws.close()
-        await self._session.close()
-
-    @property
-    def closed(self) -> bool:
-        return self.ws.closed
-
-    async def __aenter__(self):
-        await self.connect()
-        return self
-
-    async def __aexit__(self, *args):
-        await self.close()
-
-
 RTMessageContentChunkType = Literal["audio_transcript", "text", "audio", "tool_call_arguments"]
 
 
@@ -285,7 +183,10 @@ class RTOutputItem:
             server_message = await self.receive()
             if server_message is None or server_message.type == "response.output_item.done":
                 raise StopAsyncIteration
-            if server_message.type == "response.audio_transcript.delta":
+            # TODO: Need to separate chunks from control here too
+            if server_message.type == "conversation.item.created":
+                self.previous_id = server_message.previous_item_id
+            elif server_message.type == "response.audio_transcript.delta":
                 return RTMessageContentChunk("audio_transcript", server_message.delta, server_message.content_index)
             elif server_message.type == "response.audio.delta":
                 return RTMessageContentChunk("audio", server_message.delta, server_message.content_index)
@@ -549,6 +450,9 @@ class RTClient:
 
     async def send_item(self, item: Item):
         await self._client.send(ItemCreateMessage(item=item))
+
+    async def remove_item(self, item_id: str):
+        await self._client.send(ItemDeleteMessage(item_id=item_id))
 
     async def generate_response(self):
         await self._client.send(ResponseCreateMessage())

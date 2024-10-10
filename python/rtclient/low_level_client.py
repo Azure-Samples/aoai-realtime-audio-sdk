@@ -2,14 +2,24 @@
 # Licensed under the MIT License.
 
 import json
+import sys
 import uuid
-from collections.abc import AsyncIterator, Optional
+from collections.abc import AsyncIterator
+from typing import Optional
 
-from aiohttp import ClientSession, WSMsgType
+from aiohttp import ClientSession, WSMsgType, WSServerHandshakeError
 from azure.core.credentials import AzureKeyCredential
 from azure.core.credentials_async import AsyncTokenCredential
 
 from rtclient.models import ServerMessageType, UserMessageType, create_message_from_dict
+
+
+class ConnectionError(Exception):
+    def __init__(self, message: str, headers=None):
+        super().__init__(message)
+        self.headers = headers
+
+    pass
 
 
 class RTLowLevelClient:
@@ -55,26 +65,36 @@ class RTLowLevelClient:
             return {}
 
     async def connect(self):
-        self.request_id = uuid.uuid4()
-        if self._is_azure_openai:
-            auth_headers = await self._get_auth()
-            headers = {"x-ms-client-request-id": str(self.request_id), "User-Agent": self._user_agent(), **auth_headers}
-            self.ws = await self._session.ws_connect(
-                "/openai/realtime",
-                headers=headers,
-                params={"deployment": self._azure_deployment, "api-version": "2024-10-01-preview"},
-            )
-        else:
-            headers = {
-                "Authorization": f"Bearer {self._key_credential.key}",
-                "openai-beta": "realtime=v1",
-                "User-Agent": self._user_agent(),
-            }
-            self.ws = await self._session.ws_connect("/v1/realtime", headers=headers, params={"model": self._model})
+        try:
+            self.request_id = uuid.uuid4()
+            if self._is_azure_openai:
+                auth_headers = await self._get_auth()
+                headers = {
+                    "x-ms-client-request-id": str(self.request_id),
+                    "User-Agent": self._user_agent(),
+                    **auth_headers,
+                }
+                self.ws = await self._session.ws_connect(
+                    "/openai/realtime",
+                    headers=headers,
+                    params={"deployment": self._azure_deployment, "api-version": "2024-10-01-preview"},
+                )
+            else:
+                headers = {
+                    "Authorization": f"Bearer {self._key_credential.key}",
+                    "openai-beta": "realtime=v1",
+                    "User-Agent": self._user_agent(),
+                }
+                self.ws = await self._session.ws_connect("/v1/realtime", headers=headers, params={"model": self._model})
+        except WSServerHandshakeError as e:
+            await self._session.close()
+            error_message = f"Received status code {e.status} from the server"
+            raise ConnectionError(error_message, e.headers) from e
 
     async def send(self, message: UserMessageType):
         message._is_azure = self._is_azure_openai
         message_json = message.model_dump_json(exclude_unset=True)
+        print("-> ", message.model_dump_json(exclude=["audio", "event_id"]), file=sys.stderr)
         await self.ws.send_str(message_json)
 
     async def recv(self) -> ServerMessageType | None:
@@ -83,7 +103,10 @@ class RTLowLevelClient:
         websocket_message = await self.ws.receive()
         if websocket_message.type == WSMsgType.TEXT:
             data = json.loads(websocket_message.data)
-            return create_message_from_dict(data)
+
+            msg = create_message_from_dict(data)
+            print("<- ", msg.model_dump_json(exclude=["delta", "event_id"]), file=sys.stderr)
+            return msg
         else:
             return None
 

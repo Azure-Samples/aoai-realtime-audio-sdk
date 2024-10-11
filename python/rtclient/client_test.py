@@ -2,18 +2,19 @@
 # Licensed under the MIT License.
 
 
-from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterator
 import os
+from collections.abc import AsyncGenerator, AsyncIterator, Generator
 from pathlib import Path
-from dotenv import load_dotenv
+
 import numpy as np
-import soundfile as sf
 import pytest
+import soundfile as sf
 from azure.core.credentials import AzureKeyCredential
 from azure.identity.aio import DefaultAzureCredential
+from dotenv import load_dotenv
 from scipy.signal import resample
 
-from rtclient import RTClient, RealtimeException
+from rtclient import RealtimeException, RTClient
 from rtclient.models import InputTextContentPart, NoTurnDetection, UserMessageItem
 
 load_dotenv()
@@ -182,3 +183,55 @@ async def test_cancel_response(client: RTClient):
         await anext(response)
 
     assert response.status in ["cancelled", "completed"]
+
+
+@pytest.mark.asyncio
+async def test_items_text_in_text_out(client: RTClient):
+    await client.configure(modalities={"text"}, turn_detection=NoTurnDetection())
+    await client.send_item(
+        item=UserMessageItem(
+            content=[InputTextContentPart(text="Repeat exactly the following sentence: Hello, world!")]
+        )
+    )
+    response = await client.generate_response()
+
+    item = await anext(response)
+    assert item.type == "message"
+    async for part in item:
+        text = ""
+        assert part.type == "text"
+        async for chunk in part.text_chunks():
+            assert chunk is not None
+            text += chunk
+        assert part.text == text
+
+
+@pytest.mark.asyncio
+async def test_items_text_in_audio_out(client: RTClient):
+    await client.configure(modalities={"audio", "text"}, turn_detection=NoTurnDetection())
+    await client.send_item(
+        item=UserMessageItem(
+            content=[InputTextContentPart(text="Repeat exactly the following sentence: Hello, world!")]
+        )
+    )
+    response = await client.generate_response()
+
+    item = await anext(response)
+    assert item.type == "message"
+    async for part in item:
+        if part.type == "audio":
+            audio = b""
+            print("audio start")
+            async for chunk in part.audio_chunks():
+                assert chunk is not None
+                audio += chunk
+            assert len(audio) > 0
+            print("audio end")
+            print("transcript start")
+            transcript = ""
+            async for chunk in part.transcript_chunks():
+                assert chunk is not None
+                print(f"transcript chunk: {chunk}")
+                transcript += chunk
+            assert part.transcript == transcript
+            print("transcript end")

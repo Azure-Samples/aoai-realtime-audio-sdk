@@ -4,8 +4,8 @@
 import asyncio
 import base64
 import uuid
-from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable
-from typing import AsyncGenerator, Coroutine, Literal, Optional, TypeGuard, Union
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
+from typing import Literal, Optional, TypeGuard, Union
 
 from azure.core.credentials import AzureKeyCredential
 from azure.core.credentials_async import AsyncTokenCredential
@@ -105,7 +105,7 @@ from rtclient.models import (
     create_message_from_dict,
 )
 from rtclient.util.id_generator import generate_id
-from rtclient.util.message_queue import MessageQueue, MessageQueueWithError
+from rtclient.util.message_queue import MessageQueueWithError
 
 
 class RealtimeException(Exception):
@@ -179,13 +179,49 @@ class RTInputItem:
         return resolve().__await__()
 
 
+class SharedEndQueue:
+    def __init__(
+        self,
+        receive_delegate: Callable[[], Awaitable[ServerMessageType]],
+        error_predicate: Callable[[ServerMessageType], bool],
+        end_predicate: Callable[[ServerMessageType], bool],
+    ):
+        self._receive_delegate = receive_delegate
+        self._error_predicate = error_predicate
+        self._end_predicate = end_predicate
+        self._queue = []
+        self._lock = asyncio.Lock()
+
+    async def receive(self, predicate: Callable[[ServerMessageType], bool]):
+        async with self._lock:
+            for i, message in enumerate(self._queue):
+                if predicate(message):
+                    return self._queue.pop(i)
+                elif self._end_predicate(message):
+                    return message
+
+            while True:
+                message = await self._receive_delegate()
+                if message is None or self._error_predicate(message) or predicate(message):
+                    return message
+                if self._end_predicate(message):
+                    self._queue.append(message)
+                    return message
+                self._queue.append(message)
+
+
 class RTAudioContent:
     def __init__(self, message: ResponseContentPartAddedMessage, queue: MessageQueueWithError[ServerMessageType]):
         self.type: Literal["audio"] = "audio"
-        self._message = message
+        self._item_id = message.item_id
+        self._content_index = message.content_index
+        assert message.part.type == "audio"
+        self._part = message.part
         self.__queue = queue
-        self.__content_queue = MessageQueueWithError(
-            self._receive_content, lambda m: m.type == "response.content_part.done"
+        self.__content_queue = SharedEndQueue(
+            self._receive_content,
+            lambda m: m.type == "error",
+            lambda m: m.type == "response.content_part.done",
         )
 
     async def _receive_content(self):
@@ -197,6 +233,7 @@ class RTAudioContent:
                 ResponseAudioDoneMessage,
                 ResponseAudioTranscriptDeltaMessage,
                 ResponseAudioTranscriptDoneMessage,
+                ResponseContentPartDoneMessage,
             ]
         ]:
             return m.type in [
@@ -204,6 +241,7 @@ class RTAudioContent:
                 "response.audio.done",
                 "response.audio_transcript.delta",
                 "response.audio_transcript.done",
+                "response.content_part.done",
             ]
 
         return await self.__queue.receive(
@@ -212,16 +250,15 @@ class RTAudioContent:
 
     @property
     def item_id(self) -> str:
-        return self._message.item_id
+        return self._item_id
 
     @property
     def content_index(self) -> int:
-        return self._message.content_index
+        return self._content_index
 
     @property
-    def transcript(self) -> Optional[str]:
-        assert self._message.part.type == "audio"
-        return self._message.part.transcript
+    def transcript(self) -> str:
+        return self._part.transcript
 
     async def audio_chunks(self) -> AsyncGenerator[bytes]:
         while True:
@@ -231,13 +268,16 @@ class RTAudioContent:
             if message is None:
                 break
             if message.type == "response.content_part.done":
+                self._part = message.part
                 break
             if message.type == "error":
                 raise RealtimeException(message.error)
             if message.type == "response.audio.delta":
                 yield base64.b64decode(message.delta)
             elif message.type == "response.audio.done":
-                break
+                # We are skipping this as it's information is already provided by 'response.content_part.done'
+                # and that is a better signal to end the iteration
+                continue
 
     async def transcript_chunks(self) -> AsyncGenerator[str]:
         while True:
@@ -247,19 +287,25 @@ class RTAudioContent:
             if message is None:
                 break
             if message.type == "response.content_part.done":
+                self._part = message.part
                 break
             if message.type == "error":
                 raise RealtimeException(message.error)
             if message.type == "response.audio_transcript.delta":
                 yield message.delta
             elif message.type == "response.audio_transcript.done":
-                break
+                # We are skipping this as it's information is already provided by 'response.content_part.done'
+                # and that is a better signal to end the iteration
+                continue
 
 
 class RTTextContent:
     def __init__(self, message: ResponseContentPartAddedMessage, queue: MessageQueueWithError[ServerMessageType]):
         self.type: Literal["text"] = "text"
-        self._message = message
+        self._item_id = message.item_id
+        self._content_index = message.content_index
+        assert message.part.type == "text"
+        self._part = message.part
         self.__queue = queue
         self.__content_queue = MessageQueueWithError(
             self._receive_content, lambda m: m.type == "response.content_part.done"
@@ -272,11 +318,13 @@ class RTTextContent:
             Union[
                 ResponseTextDeltaMessage,
                 ResponseTextDoneMessage,
+                ResponseContentPartDoneMessage,
             ]
         ]:
             return m.type in [
                 "response.text.delta",
                 "response.text.done",
+                "response.content_part.done",
             ]
 
         return await self.__queue.receive(
@@ -285,32 +333,35 @@ class RTTextContent:
 
     @property
     def item_id(self) -> str:
-        return self._message.item_id
+        return self._item_id
 
     @property
     def content_index(self) -> int:
-        return self._message.content_index
+        return self._content_index
 
     @property
-    def text(self) -> Optional[str]:
-        assert self._message.part.type == "text"
-        return self._message.part.text
+    def text(self) -> str:
+        return self._part.text
 
     async def text_chunks(self) -> AsyncGenerator[str]:
         while True:
             message = await self.__content_queue.receive(
-                lambda m: m.type in ["response.audio_transcript.delta", "response.audio_transcript.done"]
+                lambda m: m.type in ["response.text.delta", "response.text.done"]
             )
             if message is None:
                 break
             if message.type == "response.content_part.done":
+                assert message.part.type == "text"
+                self._part = message.part
                 break
             if message.type == "error":
                 raise RealtimeException(message.error)
-            if message.type == "response.audio_transcript.delta":
+            if message.type == "response.text.delta":
                 yield message.delta
-            elif message.type == "response.audio_transcript.done":
-                break
+            elif message.type == "response.text.done":
+                # We are skipping this as it's information is already provided by 'response.content_part.done'
+                # and that is a better signal to end the iteration
+                continue
 
 
 RTMessageContent = Union[RTAudioContent, RTTextContent]
@@ -360,10 +411,13 @@ class RTMessageItem:
 
 
 class RTFunctionCallItem:
-    def __init__(self, response_id: str,
-                 item: ResponseItem,
-                 previous_id: Optional[str],
-                 queue: MessageQueueWithError[ServerMessageType]) -> None:
+    def __init__(
+        self,
+        response_id: str,
+        item: ResponseItem,
+        previous_id: Optional[str],
+        queue: MessageQueueWithError[ServerMessageType],
+    ) -> None:
         self.type: Literal["function_call"] = "function_call"
         self.response_id = response_id
         self._item = item
@@ -389,7 +443,29 @@ class RTFunctionCallItem:
         assert self._item.type == "function_call"
         return self._item.arguments
 
+    def __aiter__(self) -> AsyncIterator[str]:
+        return self
 
+    async def __anext__(self):
+        while True:
+            message = await self.__queue.receive(
+                lambda m: (
+                    m.type in ["response.function_call_arguments.delta", "response.function_call_arguments.done"]
+                    and m.item_id == self.id
+                )
+                or (m.type == "response.output_item.done" and m.item.id == self.id)
+            )
+            if message is None:
+                raise StopAsyncIteration
+            if message.type == "error":
+                raise RealtimeException(message.error)
+            if message.type == "response.output_item.done":
+                self._item = message.item
+                raise StopAsyncIteration
+            if message.type == "response.function_call_arguments.delta":
+                return message.delta
+            if message.type == "response.function_call_arguments.done":
+                continue
 
 
 RTOutputItem = Union[RTMessageItem, RTFunctionCallItem]

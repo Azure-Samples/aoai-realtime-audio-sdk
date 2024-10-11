@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 import json
-import sys
+import os
 import uuid
 from collections.abc import AsyncIterator
 from typing import Optional
@@ -52,7 +52,7 @@ class RTLowLevelClient:
         self.request_id: Optional[uuid.UUID] = None
 
     def _user_agent(self):
-        return "ms-rtclient-0.4.3"
+        return "ms-rtclient-0.4.5"
 
     async def _get_auth(self):
         if self._token_credential:
@@ -64,10 +64,19 @@ class RTLowLevelClient:
         else:
             return {}
 
+    def _get_azure_params():
+        api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+        path = os.getenv("AZURE_OPENAI_PATH")
+        return (
+            "2024-10-01-preview" if api_version is None else api_version,
+            "/openai/realtime" if path is None else path,
+        )
+
     async def connect(self):
         try:
             self.request_id = uuid.uuid4()
             if self._is_azure_openai:
+                api_version, path = self._get_azure_params()
                 auth_headers = await self._get_auth()
                 headers = {
                     "x-ms-client-request-id": str(self.request_id),
@@ -75,9 +84,9 @@ class RTLowLevelClient:
                     **auth_headers,
                 }
                 self.ws = await self._session.ws_connect(
-                    "/openai/realtime",
+                    path,
                     headers=headers,
-                    params={"deployment": self._azure_deployment, "api-version": "2024-10-01-preview"},
+                    params={"deployment": self._azure_deployment, "api-version": api_version},
                 )
             else:
                 headers = {
@@ -94,7 +103,6 @@ class RTLowLevelClient:
     async def send(self, message: UserMessageType):
         message._is_azure = self._is_azure_openai
         message_json = message.model_dump_json(exclude_unset=True)
-        print("-> ", message.model_dump_json(exclude=["audio", "event_id"]), file=sys.stderr)
         await self.ws.send_str(message_json)
 
     async def recv(self) -> ServerMessageType | None:
@@ -103,9 +111,7 @@ class RTLowLevelClient:
         websocket_message = await self.ws.receive()
         if websocket_message.type == WSMsgType.TEXT:
             data = json.loads(websocket_message.data)
-
             msg = create_message_from_dict(data)
-            print("<- ", msg.model_dump_json(exclude=["delta", "event_id"]), file=sys.stderr)
             return msg
         else:
             return None

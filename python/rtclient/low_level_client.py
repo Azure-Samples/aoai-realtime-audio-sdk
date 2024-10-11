@@ -64,7 +64,7 @@ class RTLowLevelClient:
         else:
             return {}
 
-    def _get_azure_params():
+    def _get_azure_params(self):
         api_version = os.getenv("AZURE_OPENAI_API_VERSION")
         path = os.getenv("AZURE_OPENAI_PATH")
         return (

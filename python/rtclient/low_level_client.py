@@ -12,6 +12,7 @@ from azure.core.credentials import AzureKeyCredential
 from azure.core.credentials_async import AsyncTokenCredential
 
 from rtclient.models import ServerMessageType, UserMessageType, create_message_from_dict
+from rtclient.util.user_agent import get_user_agent
 
 
 class ConnectionError(Exception):
@@ -51,9 +52,6 @@ class RTLowLevelClient:
         self._azure_deployment = azure_deployment
         self.request_id: Optional[uuid.UUID] = None
 
-    def _user_agent(self):
-        return "ms-rtclient-0.4.5"
-
     async def _get_auth(self):
         if self._token_credential:
             scope = "https://cognitiveservices.azure.com/.default"
@@ -76,11 +74,11 @@ class RTLowLevelClient:
         try:
             self.request_id = uuid.uuid4()
             if self._is_azure_openai:
-                api_version, path = self._get_azure_params()
+                api_version, path = RTLowLevelClient._get_azure_params()
                 auth_headers = await self._get_auth()
                 headers = {
                     "x-ms-client-request-id": str(self.request_id),
-                    "User-Agent": self._user_agent(),
+                    "User-Agent": get_user_agent(),
                     **auth_headers,
                 }
                 self.ws = await self._session.ws_connect(
@@ -92,7 +90,7 @@ class RTLowLevelClient:
                 headers = {
                     "Authorization": f"Bearer {self._key_credential.key}",
                     "openai-beta": "realtime=v1",
-                    "User-Agent": self._user_agent(),
+                    "User-Agent": get_user_agent(),
                 }
                 self.ws = await self._session.ws_connect("/v1/realtime", headers=headers, params={"model": self._model})
         except WSServerHandshakeError as e:

@@ -179,6 +179,56 @@ class RTInputItem:
         return resolve().__await__()
 
 
+class RTInputAudioItem:
+    def __init__(
+        self,
+        id: str,
+        audio_start_ms: Optional[int],
+        has_transcription: bool,
+        queue: MessageQueueWithError[ServerMessageType],
+    ):
+        self.type: Literal["input_audio"] = "input_audio"
+        self.id = id
+        self.audio_start_ms = audio_start_ms
+        self.audio_end_ms: Optional[int] = None
+        self.transcript: Optional[str] = None
+        self._has_transcription = has_transcription
+        self.__queue = queue
+
+    def __await__(self):
+        async def resolve():
+            while True:
+                message = await self.__queue.receive(
+                    lambda m: (
+                        m.type
+                        in [
+                            "input_audio_buffer.speech_stopped",
+                            "conversation.item.input_audio_transcription.completed",
+                            "conversation.item.input_audio_transcription.failed",
+                        ]
+                        and m.item_id == self.id
+                    )
+                    or (m.type == "conversation.item.created" and m.item.id == self.id)
+                )
+                if message is None:
+                    return
+                elif message.type == "error":
+                    raise RealtimeException(message.error)
+                elif message.type == "input_audio_buffer.speech_stopped":
+                    self.audio_end_ms = message.audio_end_ms
+                    if not self._has_transcription:
+                        return
+                elif message.type == "conversation.item.created" and not self._has_transcription:
+                    return
+                elif message.type == "conversation.item.input_audio_transcription.completed":
+                    self.transcript = message.transcript
+                    return
+                elif message.type == "conversation.item.input_audio_transcription.failed":
+                    raise RealtimeError(message.error)
+
+        return resolve().__await__()
+
+
 class SharedEndQueue:
     def __init__(
         self,
@@ -423,6 +473,8 @@ class RTFunctionCallItem:
         self._item = item
         self.previous_id = previous_id
         self.__queue = queue
+        self.__awaited = False
+        self.__iterated = False
 
     @property
     def id(self) -> str:
@@ -443,10 +495,7 @@ class RTFunctionCallItem:
         assert self._item.type == "function_call"
         return self._item.arguments
 
-    def __aiter__(self) -> AsyncIterator[str]:
-        return self
-
-    async def __anext__(self):
+    async def __inner_iter(self):
         while True:
             message = await self.__queue.receive(
                 lambda m: (
@@ -456,16 +505,36 @@ class RTFunctionCallItem:
                 or (m.type == "response.output_item.done" and m.item.id == self.id)
             )
             if message is None:
-                raise StopAsyncIteration
+                break
             if message.type == "error":
                 raise RealtimeException(message.error)
             if message.type == "response.output_item.done":
                 self._item = message.item
-                raise StopAsyncIteration
+                break
             if message.type == "response.function_call_arguments.delta":
-                return message.delta
+                yield message.delta
             if message.type == "response.function_call_arguments.done":
                 continue
+
+    def __aiter__(self) -> AsyncIterator[str]:
+        if self.__awaited:
+            raise RuntimeError("Cannot iterate after awaiting")
+        self.__iterated = True
+        return self
+
+    async def __anext__(self):
+        return await self.__inner_iter().__anext__()
+
+    def __await__(self):
+        if self.__iterated:
+            raise RuntimeError("Cannot await after iterating")
+        self.__awaited = True
+
+        async def wait_for_completion():
+            async for _ in self.__inner_iter():
+                pass
+
+        return wait_for_completion().__await__()
 
 
 RTOutputItem = Union[RTMessageItem, RTFunctionCallItem]
@@ -478,6 +547,7 @@ class RTResponse:
         queue: MessageQueueWithError[ServerMessageType],
         client: RTLowLevelClient,
     ):
+        self.type: Literal["response"] = "response"
         self._response = response
         self.__queue = queue
         self._client = client
@@ -559,7 +629,6 @@ class RTClient:
         self.session: Optional[Session] = None
 
         self._response_map: dict[str, str] = {}
-        self._transcription_enabled = False
 
     @property
     def request_id(self) -> uuid.UUID | None:
@@ -585,7 +654,6 @@ class RTClient:
         temperature: Optional[Temperature] = None,
         max_response_output_tokens: Optional[int] = None,
     ) -> Session:
-        self._transcription_enabled = input_audio_transcription is not None
         session_update_params = SessionUpdateParams()
         if model is not None:
             session_update_params.model = model
@@ -613,11 +681,6 @@ class RTClient:
             session_update_params.max_response_output_tokens = max_response_output_tokens
         await self._client.send(SessionUpdateMessage(session=session_update_params))
 
-        # HACK: Azure OpenAI does not send session.updated message yet
-        if self._client._is_azure_openai:
-            self.session = session_update_params
-            return session_update_params
-
         message = await self._message_queue.receive(lambda m: m.type == "session.updated")
         if message.type == "error":
             raise RealtimeException(message.error)
@@ -629,13 +692,18 @@ class RTClient:
         base64_encoded = base64.b64encode(audio).decode("utf-8")
         await self._client.send(InputAudioBufferAppendMessage(audio=base64_encoded))
 
-    async def commit_audio(self) -> str:
+    async def commit_audio(self) -> RTInputAudioItem:
         await self._client.send(InputAudioBufferCommitMessage())
         message = await self._message_queue.receive(lambda m: m.type == "input_audio_buffer.committed")
         if message.type == "error":
             raise RealtimeException(message.error)
         assert message.type == "input_audio_buffer.committed"
-        return message.item_id
+        return RTInputAudioItem(
+            message.item_id,
+            None,
+            self.session.input_audio_transcription is not None,
+            self._message_queue,
+        )
 
     async def clear_audio(self) -> None:
         await self._client.send(InputAudioBufferClearMessage())
@@ -672,33 +740,29 @@ class RTClient:
         if message.type == "error":
             raise RealtimeException(message.error)
         assert message.type == "response.created"
+        # TODO: Need to verify if there is a way to correlate  the response.create message with the
+        # response.created message
         return RTResponse(message.response, self._message_queue, self._client)
 
-    # async def control_messages(self) -> AsyncIterable[ServerMessageType]:
-    #     while True:
-    #         message = await self._message_queue.receive("SESSION")
-    #         if message is None:
-    #             break
-    #         yield message
-
-    # async def items(self) -> AsyncIterable[RTInputItem | RTResponse]:
-    #     while True:
-    #         message = await self._message_queue.receive("SESSION-ITEM")
-    #         if message is None:
-    #             break
-    #         elif message.type == "input_audio_buffer.speech_started":
-    #             item_id = message.item_id
-    #             yield RTInputItem(
-    #                 item_id,
-    #                 message.audio_start_ms,
-    #                 self._transcription_enabled,
-    #                 lambda: self._item_queue.receive(item_id),
-    #             )
-    #         elif message.type == "response.created":
-    #             response_id = message.response.id
-    #             yield RTResponse(response_id, None, lambda: self._item_queue.receive(response_id))
-    #         else:
-    #             raise ValueError(f"Unexpected message type {message.type}")
+    async def events(self) -> AsyncGenerator[RTInputAudioItem | RTResponse]:
+        while True:
+            message = await self._message_queue.receive(
+                lambda m: m.type == "input_audio_buffer.speech_started" or m.type == "response.created"
+            )
+            if message is None:
+                break
+            elif message.type == "input_audio_buffer.speech_started":
+                item_id = message.item_id
+                yield RTInputAudioItem(
+                    item_id,
+                    message.audio_start_ms,
+                    self.session.input_audio_transcription is not None,
+                    self._message_queue,
+                )
+            elif message.type == "response.created":
+                yield RTResponse(message.response, self._message_queue, self._client)
+            else:
+                raise ValueError(f"Unexpected message type {message.type}")
 
     async def connect(self):
         await self._client.connect()

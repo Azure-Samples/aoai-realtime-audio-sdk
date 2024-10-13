@@ -745,6 +745,7 @@ class RTClient:
         return RTResponse(message.response, self._message_queue, self._client)
 
     async def events(self) -> AsyncGenerator[RTInputAudioItem | RTResponse]:
+        # TODO: Add the updated quota message as a control type of event.
         while True:
             message = await self._message_queue.receive(
                 lambda m: m.type == "input_audio_buffer.speech_started" or m.type == "response.created"

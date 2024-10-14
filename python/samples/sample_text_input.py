@@ -2,7 +2,6 @@
 # Licensed under the MIT license.
 
 import asyncio
-import base64
 import os
 import sys
 import time
@@ -12,7 +11,15 @@ import soundfile as sf
 from azure.core.credentials import AzureKeyCredential
 from dotenv import load_dotenv
 
-from rtclient import InputTextContentPart, RTAudioContent, RTClient, RTFunctionCallItem, RTInputItem, RTMessageItem, RTOutputItem, RTResponse, UserMessageItem
+from rtclient import (
+    InputTextContentPart,
+    RTAudioContent,
+    RTClient,
+    RTFunctionCallItem,
+    RTMessageItem,
+    RTResponse,
+    UserMessageItem,
+)
 
 start_time = time.time()
 
@@ -100,7 +107,6 @@ async def run(client: RTClient, instructions_file_path: str, user_message_file_p
         log("Done")
         response = await client.generate_response()
         await receive_response(client, response, out_dir)
-
 
 
 def get_env_var(var_name: str) -> str:

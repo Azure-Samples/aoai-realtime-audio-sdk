@@ -9,28 +9,23 @@ T = TypeVar("T")
 
 
 class MessageQueue(Generic[T]):
-    def __init__(self, receive_delegate: Callable[[], Awaitable[T]], id_extractor: Callable[[T], Optional[str]]):
-        self._stored_messages: dict[str, list[T]] = {}
-        self.waiting_receivers: dict[str, list[asyncio.Future]] = {}
+    def __init__(self, receive_delegate: Callable[[], Awaitable[T]]):
+        self._stored_messages: list[T] = []
+        self.waiting_receivers: list[tuple[Callable[[T], bool], asyncio.Future]] = []
         self.is_polling: bool = False
         self.receive_delegate = receive_delegate
-        self.id_extractor = id_extractor
         self.poll_task: Optional[asyncio.Task] = None
 
-    def _push_back(self, id: str, message: T):
-        if id not in self._stored_messages:
-            self._stored_messages[id] = []
-        self._stored_messages[id].append(message)
+    def _push_back(self, message: T):
+        self._stored_messages.append(message)
 
-    def _pop_front(self, id: str) -> Optional[T]:
-        if id not in self._stored_messages:
-            return None
-        message = self._stored_messages[id].pop(0)
-        if not self._stored_messages[id]:
-            del self._stored_messages[id]
-        return message
+    def _find_and_remove(self, predicate: Callable[[T], bool]) -> Optional[T]:
+        for i, message in enumerate(self._stored_messages):
+            if predicate(message):
+                return self._stored_messages.pop(i)
+        return None
 
-    async def poll_receive(self):
+    async def _poll_receive(self):
         if self.is_polling:
             return
 
@@ -39,62 +34,71 @@ class MessageQueue(Generic[T]):
             while self.is_polling:
                 message = await self.receive_delegate()
                 if message is None:
-                    self.notify_end_of_stream()
+                    self._notify_end_of_stream()
                     break
-                self.notify_receiver(message)
-                if self.get_all_waiting_receivers_count() == 0:
+                self._notify_receiver(message)
+                if len(self.waiting_receivers) == 0:
                     break
         except Exception as error:
-            self.notify_error(error)
+            self._notify_exception(error)
         finally:
             self.is_polling = False
             self.poll_task = None
 
-    def notify_error(self, error: Exception):
-        for futures in self.waiting_receivers.values():
-            for future in futures:
-                if not future.done():
-                    future.set_exception(error)
+    def _notify_exception(self, error: Exception):
+        for _, future in self.waiting_receivers:
+            if not future.done():
+                future.set_exception(error)
         self.waiting_receivers.clear()
 
-    def notify_end_of_stream(self):
-        for futures in self.waiting_receivers.values():
-            for future in futures:
-                if not future.done():
-                    future.set_result(None)
+    def _notify_end_of_stream(self):
+        for _, future in self.waiting_receivers:
+            if not future.done():
+                future.set_result(None)
         self.waiting_receivers.clear()
 
-    def notify_receiver(self, message: T):
-        id = self.id_extractor(message)
-        if id is None:
-            return
-
-        if id not in self.waiting_receivers:
-            self._push_back(id, message)
-            return
-
-        future = self.waiting_receivers[id].pop(0)
-        if not self.waiting_receivers[id]:
-            del self.waiting_receivers[id]
-        future.set_result(message)
-
-    def get_all_waiting_receivers_count(self) -> int:
-        return sum(len(futures) for futures in self.waiting_receivers.values())
+    def _notify_receiver(self, message: T):
+        for i, (predicate, future) in enumerate(self.waiting_receivers):
+            if predicate(message):
+                del self.waiting_receivers[i]
+                future.set_result(message)
+                return
+        self._push_back(message)
 
     def queued_messages_count(self) -> int:
-        return sum(len(messages) for messages in self._stored_messages.values())
+        return len(self._stored_messages)
 
-    async def receive(self, receiver_id: str) -> Optional[T]:
-        found_message = self._pop_front(receiver_id)
+    async def receive(self, predicate: Callable[[T], bool]) -> Optional[T]:
+        found_message = self._find_and_remove(predicate)
         if found_message is not None:
             return found_message
 
         future = asyncio.Future()
-        if receiver_id not in self.waiting_receivers:
-            self.waiting_receivers[receiver_id] = []
-        self.waiting_receivers[receiver_id].append(future)
+        self.waiting_receivers.append((predicate, future))
 
         if not self.is_polling and self.poll_task is None:
-            self.poll_task = asyncio.create_task(self.poll_receive())
+            self.poll_task = asyncio.create_task(self._poll_receive())
 
         return await future
+
+
+class MessageQueueWithError(MessageQueue[T]):
+    def __init__(self, receive_delegate: Callable[[], Awaitable[T]], error_predicate: Callable[[T], bool]):
+        super().__init__(receive_delegate)
+        self._error_predicate = error_predicate
+        self._error: Optional[T] = None
+
+    def _notify_error(self, error: T):
+        for _, future in self.waiting_receivers:
+            if not future.done():
+                future.set_result(error)
+        self.waiting_receivers.clear()
+
+    async def receive(self, predicate) -> Optional[T]:
+        if self._error is not None:
+            return self._error
+        message = await super().receive(lambda m: predicate(m) or self._error_predicate(m))
+        if message is not None and self._error_predicate(message):
+            self._error = message
+            self._notify_error(message)
+        return message

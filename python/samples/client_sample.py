@@ -2,7 +2,6 @@
 # Licensed under the MIT license.
 
 import asyncio
-import base64
 import os
 import sys
 
@@ -12,7 +11,16 @@ from azure.core.credentials import AzureKeyCredential
 from dotenv import load_dotenv
 from scipy.signal import resample
 
-from rtclient import InputAudioTranscription, RTClient, RTInputItem, RTOutputItem, RTResponse, ServerVAD
+from rtclient import (
+    InputAudioTranscription,
+    RTAudioContent,
+    RTClient,
+    RTFunctionCallItem,
+    RTInputAudioItem,
+    RTMessageItem,
+    RTResponse,
+    ServerVAD,
+)
 
 
 def resample_audio(audio_data, original_sample_rate, target_sample_rate):
@@ -50,88 +58,97 @@ async def send_audio(client: RTClient, audio_file_path: str):
         await client.send_audio(chunk)
 
 
-async def receive_control(client: RTClient):
-    async for control in client.control_messages():
-        if control is not None:
-            print(f"Received a control message: {control.type}")
-        else:
-            break
-
-
-async def receive_item(item: RTOutputItem, out_dir: str):
+async def receive_message_item(item: RTMessageItem, out_dir: str):
     prefix = f"[response={item.response_id}][item={item.id}]"
-    audio_data = None
-    audio_transcript = None
-    text_data = None
-    arguments = None
-    async for chunk in item:
-        if chunk.type == "audio_transcript":
-            audio_transcript = (audio_transcript or "") + chunk.data
-        elif chunk.type == "audio":
-            if audio_data is None:
+    async for contentPart in item:
+        if contentPart.type == "audio":
+
+            async def collect_audio(audioContentPart: RTAudioContent):
                 audio_data = bytearray()
-            audio_bytes = base64.b64decode(chunk.data)
-            audio_data.extend(audio_bytes)
-        elif chunk.type == "tool_call_arguments":
-            arguments = (arguments or "") + chunk.data
-        elif chunk.type == "text":
-            text_data = (text_data or "") + chunk.data
-    if text_data is not None:
-        print(prefix, f"Text: {text_data}")
-        with open(os.path.join(out_dir, f"{item.id}.text.txt"), "w", encoding="utf-8") as out:
-            out.write(text_data)
-    if audio_data is not None:
-        print(prefix, f"Audio received with length: {len(audio_data)}")
-        with open(os.path.join(out_dir, f"{item.id}.wav"), "wb") as out:
-            audio_array = np.frombuffer(audio_data, dtype=np.int16)
-            sf.write(out, audio_array, samplerate=24000)
-    if audio_transcript is not None:
-        print(prefix, f"Audio Transcript: {audio_transcript}")
-        with open(os.path.join(out_dir, f"{item.id}.audio_transcript.txt"), "w", encoding="utf-8") as out:
-            out.write(audio_transcript)
-    if arguments is not None:
-        print(prefix, f"Tool Call Arguments: {arguments}")
-        with open(os.path.join(out_dir, f"{item.id}.tool.streamed.json"), "w", encoding="utf-8") as out:
-            out.write(arguments)
+                async for chunk in audioContentPart.audio_chunks():
+                    audio_data.extend(chunk)
+                return audio_data
+
+            async def collect_transcript(audioContentPart: RTAudioContent):
+                audio_transcript: str = ""
+                async for chunk in audioContentPart.transcript_chunks():
+                    audio_transcript += chunk
+                return audio_transcript
+
+            audio_task = asyncio.create_task(collect_audio(contentPart))
+            transcript_task = asyncio.create_task(collect_transcript(contentPart))
+            audio_data, audio_transcript = await asyncio.gather(audio_task, transcript_task)
+            print(prefix, f"Audio received with length: {len(audio_data)}")
+            print(prefix, f"Audio Transcript: {audio_transcript}")
+            with open(os.path.join(out_dir, f"{item.id}_{contentPart.content_index}.wav"), "wb") as out:
+                audio_array = np.frombuffer(audio_data, dtype=np.int16)
+                sf.write(out, audio_array, samplerate=24000)
+            with open(
+                os.path.join(out_dir, f"{item.id}_{contentPart.content_index}.audio_transcript.txt"),
+                "w",
+                encoding="utf-8",
+            ) as out:
+                out.write(audio_transcript)
+        elif contentPart.type == "text":
+            text_data = ""
+            async for chunk in contentPart.text_chunks():
+                text_data += chunk
+            print(prefix, f"Text: {text_data}")
+            with open(
+                os.path.join(out_dir, f"{item.id}_{contentPart.content_index}.text.txt"), "w", encoding="utf-8"
+            ) as out:
+                out.write(text_data)
+
+
+async def receive_function_call_item(item: RTFunctionCallItem, out_dir: str):
+    prefix = f"[function_call_item={item.id}]"
+    await item
+    print(prefix, f"Function call arguments: {item.arguments}")
+    with open(os.path.join(out_dir, f"{item.id}.function_call.json"), "w", encoding="utf-8") as out:
+        out.write(item.arguments)
 
 
 async def receive_response(client: RTClient, response: RTResponse, out_dir: str):
     prefix = f"[response={response.id}]"
     async for item in response:
         print(prefix, f"Received item {item.id}")
-        asyncio.create_task(receive_item(item, out_dir))
-    print(prefix, "Response completed")
-    await client.close()
+        if item.type == "message":
+            asyncio.create_task(receive_message_item(item, out_dir))
+        elif item.type == "function_call":
+            asyncio.create_task(receive_function_call_item(item, out_dir))
+
+    print(prefix, f"Response completed ({response.status})")
+    if response.status == "completed":
+        await client.close()
 
 
-async def receive_input_item(item: RTInputItem):
+async def receive_input_item(item: RTInputAudioItem):
     prefix = f"[input_item={item.id}]"
     await item
-    print(prefix, f"Previous Id: {item.previous_id}")
     print(prefix, f"Transcript: {item.transcript}")
     print(prefix, f"Audio Start [ms]: {item.audio_start_ms}")
     print(prefix, f"Audio End [ms]: {item.audio_end_ms}")
 
 
-async def receive_items(client: RTClient, out_dir: str):
-    async for item in client.items():
-        if isinstance(item, RTResponse):
-            asyncio.create_task(receive_response(client, item, out_dir))
-        else:
-            asyncio.create_task(receive_input_item(item))
+async def receive_events(client: RTClient, out_dir: str):
+    async for event in client.events():
+        if event.type == "input_audio":
+            asyncio.create_task(receive_input_item(event))
+        elif event.type == "response":
+            asyncio.create_task(receive_response(client, event, out_dir))
 
 
 async def receive_messages(client: RTClient, out_dir: str):
     await asyncio.gather(
-        receive_items(client, out_dir),
-        receive_control(client),
+        receive_events(client, out_dir),
     )
 
 
 async def run(client: RTClient, audio_file_path: str, out_dir: str):
     print("Configuring Session...", end="", flush=True)
     await client.configure(
-        turn_detection=ServerVAD(), input_audio_transcription=InputAudioTranscription(model="whisper-1")
+        turn_detection=ServerVAD(threshold=0.5, prefix_padding_ms=300, silence_duration_ms=200),
+        input_audio_transcription=InputAudioTranscription(model="whisper-1"),
     )
     print("Done")
 

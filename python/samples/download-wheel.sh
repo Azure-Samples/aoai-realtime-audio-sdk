@@ -3,7 +3,7 @@
 OWNER="Azure-Samples"
 REPO="aoai-realtime-audio-sdk"
 FILTER="-py3-none-any.whl"
-RELEASE="py/v0.4.4"
+RELEASE="py/v0.5.0"
 OUTPUT_DIR="."
 
 API_URL="https://api.github.com/repos/$OWNER/$REPO/releases/tags/$RELEASE"

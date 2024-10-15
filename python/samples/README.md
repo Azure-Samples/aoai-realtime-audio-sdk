@@ -36,7 +36,7 @@ These can be run by typing `./download-wheel.sh` or `pwsh ./download-wheel.ps1` 
 Next, install the dependencies:
 ```sh
 pip install -r requirements.txt
-pip install rtclient-0.5.0-py3-none-any.whl
+pip install rtclient-0.5.1-py3-none-any.whl
 ```
 
 ### 3. Set Up Environment Variables

@@ -25,18 +25,18 @@ source venv/bin/activate
 
 Once the virtual environment is activated, download the latest package wheels using the provided scripts and install the required dependencies using `pip`:
 
-- [download-pkg.sh](./download-pkg.sh) for bash
+- [download-wheel.sh](./download-wheel.sh) for bash
     > Note that this script requires `jq` to be installed.
 
-- [download-pkg.ps1](./download-pkg.ps1) for PowerShell
+- [download-wheel.ps1](./download-wheel.ps1) for PowerShell
 
-These can be run by typing `./download-pkg.sh` or `pwsh ./download-pkg.ps1` respectively.
+These can be run by typing `./download-wheel.sh` or `pwsh ./download-wheel.ps1` respectively.
 
 
 Next, install the dependencies:
 ```sh
 pip install -r requirements.txt
-pip install rtclient-0.4.0-py3-none-any.whl
+pip install rtclient-0.5.1-py3-none-any.whl
 ```
 
 ### 3. Set Up Environment Variables

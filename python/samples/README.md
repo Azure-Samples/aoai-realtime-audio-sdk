@@ -61,7 +61,7 @@ The application requires certain environment variables to be set. These variable
 
     Where the `<audio file>` is the input audio to be used in the run (sample files in the supported formats are included in the repository).
 
-    The last parameter can be iether `azure` or `openai` depending if the sample is to be run against Azure OpenAI or OpenAI respectively.
+    The last parameter can be either `azure` or `openai` depending if the sample is to be run against Azure OpenAI or OpenAI respectively.
 
 - To run the high-level client sample:
 

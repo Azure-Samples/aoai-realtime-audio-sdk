@@ -5,6 +5,7 @@ import { test } from "vitest";
 import fs from "fs/promises";
 import { LowLevelRTClient } from "../src/client";
 import { DefaultAzureCredential } from "@azure/identity";
+import 'dotenv/config'
 
 const runLiveTests = process.env.LIVE_TESTS === "true";
 const openAIKey = process.env.OPENAI_API_KEY;

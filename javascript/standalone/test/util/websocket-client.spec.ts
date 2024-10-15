@@ -4,11 +4,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   WebSocketClient,
-  ConnectionSettings,
   MessageProtocolHandler,
   validationSuccess,
   validationError,
 } from "../../src/util/websocket-client";
+import { ConnectionSettings } from "../../src/util/interfaces";
 
 interface EchoServerMessage<T> {
   type: "message" | "greeting";

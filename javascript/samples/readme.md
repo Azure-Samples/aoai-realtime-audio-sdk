@@ -8,21 +8,25 @@
 
 ### Getting the library package
 
-For these samples to work, the client library package is required to be downloaded to this folder (alternatively, it can be build from source and copied here). For that we provide a couple of scripts:
+The web sample havs the Standalone client library package `rt-client-0.4.6.tgz` as a custom dependency. `./web/package.json` references the file like this `"rt-client": "file:../rt-client-0.4.6.tgz"` from the `samples` folder.
+Installer scripts for bash and PowerShell are provided in this folder as `[download-pkg.sh](./download-pkg.sh)` and `[.download-pkg.ps1](./download-pkg.ps1)` respectively. These scripts place the `.tgz` file in the current folder. You can also build the package from source in the `../standalone/` folder and copy it here.
 
-- [download-pkg.sh](./download-pkg.sh) for bash
-    > Note that this script requires `jq` to be installed.
+Download the library package file using bash (requires `jq`):
+```bash
+./download-pkg.sh
+```
 
-- [download-pkg.ps1](./download-pkg.ps1) for PowerShell
-
-These can be run by typing `./download-pkg.sh` or `pwsh ./download-pkg.ps1` respectively.
+Download the library package file using PowerShell:
+```bash
+./download-pkg.ps1
+```
 
 ## Using the sample
 
-1. Navigate to this folder
-2. Run `npm install` to download a small number of dependency packages (see `package.json`)
+1. In terminal, navigate to the `./web/` folder
+2. Run `npm install` to install dependencies (see `package.json`)
 3. Run `npm run dev` to start the web server, navigating any firewall permissions prompts
-4. Use any of the provided URIs from the console output, e.g. `http://localhost:5173/`, in a browser
+4. Use the provided URIs from the console output, e.g. `http://localhost:5173/`, to open the app in a browser
 5. Add authentication details:
 
     #### Azure Open AI
@@ -31,7 +35,7 @@ These can be run by typing `./download-pkg.sh` or `pwsh ./download-pkg.ps1` resp
 
     #### OpenAI
 
-    For connecting with OpenAI no endpoint is required and you only need to provide the `API Key`
+    For connecting with OpenAI no provider or endpoint is required. You only need to provide the model name and `API Key`
 
 7. Click the "Record" button to start the session; accept any microphone permissions dialog
 8. You should see a `<< Session Started >>` message in the left-side output, after which you can speak to the app
@@ -46,9 +50,6 @@ These can be run by typing `./download-pkg.sh` or `pwsh ./download-pkg.ps1` resp
 
 ## Code description
 
-This sample uses a custom client to simplify the usage of the realtime API. The client package can be obtained by either building the [library](../standalone/) or by downloading it using the scripts provided:
-
-- [bash ](./download-pkg.sh) - Note that  this script requires `jq` to be installed.
-- [PowerShell](./download-pkg.ps1)
+This sample uses a custom client to simplify the usage of the realtime API. The client package can be inspected in the `[../standalone/src](../standalone/src/)` folder or by downloading it using the scripts provided above.
 
 The primary file demonstrating `/realtime` use is [src/main.ts](./src/main.ts); the first few functions demonstrate connecting to `/realtime` using the client, sending an inference configuration message, and then processing the send/receive of messages on the connection.

@@ -10,6 +10,7 @@ export interface ConnectionSettings {
   protocols?: string[];
   headers?: Record<string, string>;
   policy?: WebSocketPolicy;
+  requestId?: string;
 }
 
 export interface RTOpenAIOptions {

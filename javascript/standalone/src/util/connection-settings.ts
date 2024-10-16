@@ -33,9 +33,8 @@ export function azureOpenAISettings(
   credential: KeyCredential | TokenCredential,
   options: RTAzureOpenAIOptions,
 ): ConnectionSettings {
-  if (options.requestId === undefined) {
-    throw new Error("requestId is required");
-  }
+  const requestId = options.requestId ?? crypto.randomUUID();
+
   const scopes = ["https://cognitiveservices.azure.com/.default"];
 
   uri.searchParams.set("api-version", "2024-10-01-preview");
@@ -45,7 +44,7 @@ export function azureOpenAISettings(
     uri,
     headers: {
       "User-Agent": getUserAgent(),
-      "x-ms-client-request-id": options.requestId,
+      "x-ms-client-request-id": requestId,
     },
     policy: async (settings) => {
       if (isKeyCredential(credential)) {
@@ -58,6 +57,7 @@ export function azureOpenAISettings(
         settings.headers = {
           ...settings.headers,
           Authorization: `Bearer ${token.token}`,
+          requestId,
         };
       }
       return settings;

@@ -28,7 +28,7 @@ import {
 } from "./util/connection-settings";
 
 export class LowLevelRTClient {
-  private requestId: string | undefined;
+  public requestId: string | undefined;
   private client: WebSocketClient<UserMessageType, ServerMessageType>;
 
   private getWebsocket(
@@ -85,11 +85,10 @@ export class LowLevelRTClient {
         isCredential(credentialOrOptions) &&
         isRTAzureOpenAIOptions(options)
       ) {
-        this.requestId = options.requestId || crypto.randomUUID();
         return azureOpenAISettings(
           uriOrCredential as URL,
           credentialOrOptions,
-          { requestId: this.requestId, ...options },
+          options,
         );
       } else {
         throw new Error(
@@ -97,6 +96,7 @@ export class LowLevelRTClient {
         );
       }
     })();
+    this.requestId = settings.requestId;
     this.client = this.getWebsocket(settings);
   }
 

@@ -67,7 +67,7 @@ export default [
           {
             find: "./util/connection-settings",
             replacement: "./util/connection-settings-browser",
-          }
+          },
         ],
       }),
       typescript({

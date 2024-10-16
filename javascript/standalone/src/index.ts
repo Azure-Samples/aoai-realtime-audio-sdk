@@ -95,8 +95,6 @@ export {
 
 export { KeyCredential, TokenCredential, AccessToken } from "./util/auth";
 
-export {
-  LowLevelRTClient,
-  RTOpenAIOptions,
-  RTAzureOpenAIOptions,
-} from "./client";
+export { LowLevelRTClient } from "./client";
+
+export { RTOpenAIOptions, RTAzureOpenAIOptions } from "./util/interfaces";

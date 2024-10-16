@@ -16,7 +16,7 @@ export interface ServerVAD {
   silence_duration_ms?: number;
 }
 
-export type TurnDetection = NoTurnDetection | ServerVAD;
+export type TurnDetection = ServerVAD | null;
 
 export interface FunctionToolChoice {
   type: "function";

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+import { ConnectionSettings } from "./interfaces";
+
 type _WS = WebSocket;
 const _WS = WebSocket;
 const _CloseEvent = CloseEvent;
@@ -23,3 +25,15 @@ export const sendMessage = (
   socket.send(message);
   return Promise.resolve();
 };
+
+export async function getWebsocket(
+  settings: ConnectionSettings,
+): Promise<WebSocket> {
+  if (settings.policy != undefined) {
+    settings = await settings.policy(settings);
+  }
+  if (settings.headers != undefined) {
+    throw new Error("Headers are not supported in the browser");
+  }
+  return new WebSocket(settings.uri, settings.protocols);
+}

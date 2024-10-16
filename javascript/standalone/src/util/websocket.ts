@@ -7,6 +7,7 @@ import {
   MessageEvent as WSMessageEvent,
   WebSocket as WS,
 } from "ws";
+import { ConnectionSettings } from "./interfaces";
 
 export type WebSocket = WS;
 export const WebSocket = WS;
@@ -28,3 +29,14 @@ export const sendMessage = (
     });
   });
 };
+
+export async function getWebsocket(
+  settings: ConnectionSettings,
+): Promise<WebSocket> {
+  if (settings.policy != undefined) {
+    settings = await settings.policy(settings);
+  }
+  return new WebSocket(settings.uri, settings.protocols, {
+    headers: settings.headers,
+  });
+}

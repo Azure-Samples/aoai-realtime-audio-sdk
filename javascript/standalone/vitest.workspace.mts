@@ -1,5 +1,18 @@
 import { defineWorkspace } from "vitest/config";
 
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const environmentVariables = {
+  LIVE_TESTS: process.env.LIVE_TESTS,
+  AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT,
+  AZURE_OPENAI_API_KEY: process.env.AZURE_OPENAI_API_KEY,
+  AZURE_OPENAI_DEPLOYMENT: process.env.AZURE_OPENAI_DEPLOYMENT,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  OPENAI_MODEL: process.env.OPENAI_MODEL,
+};
+
 export default defineWorkspace([
   {
     test: {
@@ -7,7 +20,10 @@ export default defineWorkspace([
       include: ["**/*.{spec,browser.spec}.ts"],
       exclude: ["**/*.node.spec.ts"],
       environment: "playwright",
-      alias: { "./websocket": "./websocket-browser" },
+      alias: {
+        "./websocket": "./websocket-browser",
+        "./util/connection-settings": "./util/connection-settings-browser",
+      },
       browser: {
         screenshotFailures: false,
         enabled: true,
@@ -15,6 +31,7 @@ export default defineWorkspace([
         provider: "playwright",
         headless: true,
       },
+      env: environmentVariables,
     },
   },
   {
@@ -23,6 +40,7 @@ export default defineWorkspace([
       include: ["**/*.{spec,node.spec}.ts"],
       exclude: ["**/*.browser.spec.ts"],
       environment: "node",
+      env: environmentVariables,
     },
   },
 ]);

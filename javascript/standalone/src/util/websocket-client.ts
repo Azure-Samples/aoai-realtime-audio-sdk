@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+import { ConnectionSettings } from "./interfaces";
 import {
   WebSocket,
   ErrorEvent,
   CloseEvent,
   MessageEvent,
   sendMessage,
+  getWebsocket,
 } from "./websocket";
 
 type ResolveFn<T> = (value: IteratorResult<T>) => void;
@@ -35,16 +37,6 @@ export type SerializeMessage<T> = (
   message: T,
 ) => string | ArrayBufferLike | ArrayBufferView;
 
-export type WebSocketPolicy = (
-  ConnectionSettings: ConnectionSettings,
-) => Promise<ConnectionSettings>;
-
-export interface ConnectionSettings {
-  uri: URL;
-  protocols?: string[];
-  policy?: WebSocketPolicy;
-}
-
 export interface MessageProtocolHandler<U, D> {
   validate: ValidateProtocolMessage<D>;
   serialize: SerializeMessage<U>;
@@ -69,11 +61,7 @@ export class WebSocketClient<U, D> implements AsyncIterable<D> {
     this.validate = handler.validate;
     this.serialize = handler.serialize;
     this.connectedPromise = new Promise(async (resolve, reject) => {
-      const { uri, protocols } =
-        settings.policy === undefined
-          ? settings
-          : await settings.policy(settings);
-      this.socket = new WebSocket(uri.toString(), protocols);
+      this.socket = await getWebsocket(settings);
       this.socket.onopen = () => {
         this.socket.onmessage = this.getMessageHandler();
         this.closedPromise = new Promise((resolve) => {

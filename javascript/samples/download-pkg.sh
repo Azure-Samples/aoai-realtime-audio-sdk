@@ -3,7 +3,7 @@
 OWNER="Azure-Samples"
 REPO="aoai-realtime-audio-sdk"
 FILTER="tgz"
-RELEASE="v0.1.0-beta.1"
+RELEASE="js/v0.4.7"
 OUTPUT_DIR="."
 
 API_URL="https://api.github.com/repos/$OWNER/$REPO/releases/tags/$RELEASE"

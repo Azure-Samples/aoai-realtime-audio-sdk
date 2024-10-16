@@ -1,7 +1,7 @@
 $Owner = "Azure-Samples"
 $Repo = "aoai-realtime-audio-sdk"
 $Filter = "tgz"
-$Release = "v0.1.0-beta.1"
+$Release = "js/v0.4.7"
 $OutputDir = "."
 
 $apiUrl = "https://api.github.com/repos/$Owner/$Repo/releases/tags/$Release"

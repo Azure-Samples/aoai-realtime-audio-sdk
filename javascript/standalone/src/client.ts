@@ -4,7 +4,6 @@
 import { isServerMessageType } from "./model-utils";
 import { ServerMessageType, UserMessageType } from "./models";
 import {
-  ConnectionSettings,
   validationError,
   validationSuccess,
   WebSocketClient,
@@ -16,82 +15,21 @@ import {
   KeyCredential,
   TokenCredential,
 } from "./util/auth";
-
-export interface RTOpenAIOptions {
-  model: string;
-}
-
-export interface RTAzureOpenAIOptions {
-  deployment: string;
-}
-
-const isRTOpenAIOptions = (options: unknown): options is RTOpenAIOptions => {
-  return (
-    typeof options === "object" &&
-    options !== null &&
-    "model" in options &&
-    typeof (options as RTOpenAIOptions).model === "string"
-  );
-};
-
-const isRTAzureOpenAIOptions = (
-  options: unknown,
-): options is RTAzureOpenAIOptions => {
-  return (
-    typeof options === "object" &&
-    options !== null &&
-    "deployment" in options &&
-    typeof (options as RTAzureOpenAIOptions).deployment === "string"
-  );
-};
+import {
+  ConnectionSettings,
+  isRTAzureOpenAIOptions,
+  isRTOpenAIOptions,
+  RTAzureOpenAIOptions,
+  RTOpenAIOptions,
+} from "./util/interfaces";
+import {
+  azureOpenAISettings,
+  openAISettings,
+} from "./util/connection-settings";
 
 export class LowLevelRTClient {
-  private requestId: string | undefined;
+  public requestId: string | undefined;
   private client: WebSocketClient<UserMessageType, ServerMessageType>;
-
-  private azureOpenAISettings(
-    uri: URL,
-    credential: KeyCredential | TokenCredential,
-    options: RTAzureOpenAIOptions,
-  ): ConnectionSettings {
-    const scopes = ["https://cognitiveservices.azure.com/.default"];
-    this.requestId = crypto.randomUUID();
-    uri.searchParams.set("api-version", "2024-10-01-preview");
-    uri.searchParams.set("x-ms-client-request-id", this.requestId!);
-    uri.searchParams.set("deployment", options.deployment);
-    uri.pathname = "openai/realtime";
-    return {
-      uri,
-      policy: async (settings) => {
-        if (isKeyCredential(credential)) {
-          settings.uri.searchParams.set("api-key", credential.key);
-        } else {
-          const token = await credential.getToken(scopes);
-          settings.uri.searchParams.set(
-            "Authorization",
-            `Bearer ${token.token}`,
-          );
-        }
-        return settings;
-      },
-    };
-  }
-
-  private openAISettings(
-    credential: KeyCredential,
-    options: RTOpenAIOptions,
-  ): ConnectionSettings {
-    const uri = new URL("wss://api.openai.com/v1/realtime");
-    uri.searchParams.set("model", options.model);
-    return {
-      uri,
-      protocols: [
-        "realtime",
-        `openai-insecure-api-key.${credential.key}`,
-        "openai-beta.realtime-v1",
-      ],
-    };
-  }
 
   private getWebsocket(
     settings: ConnectionSettings,
@@ -142,12 +80,12 @@ export class LowLevelRTClient {
         isKeyCredential(uriOrCredential) &&
         isRTOpenAIOptions(credentialOrOptions)
       ) {
-        return this.openAISettings(uriOrCredential, credentialOrOptions);
+        return openAISettings(uriOrCredential, credentialOrOptions);
       } else if (
         isCredential(credentialOrOptions) &&
         isRTAzureOpenAIOptions(options)
       ) {
-        return this.azureOpenAISettings(
+        return azureOpenAISettings(
           uriOrCredential as URL,
           credentialOrOptions,
           options,
@@ -158,6 +96,7 @@ export class LowLevelRTClient {
         );
       }
     })();
+    this.requestId = settings.requestId;
     this.client = this.getWebsocket(settings);
   }
 

@@ -13,7 +13,7 @@ export class MessageQueue<T> {
   protected waitingReceivers: [
     Predicate<T>,
     [ResolveFn<T>, RejectFn<Error>],
-    AbortController
+    AbortController,
   ][] = [];
   private isPolling: boolean = false;
   private pollPromise: Promise<void> | null = null;
@@ -34,7 +34,6 @@ export class MessageQueue<T> {
 
   private async pollReceive(): Promise<void> {
     if (this.isPolling) {
-      console.log("pollReceive: already polling");
       return;
     }
 
@@ -46,25 +45,19 @@ export class MessageQueue<T> {
   private async doPollReceive(): Promise<void> {
     try {
       while (this.isPolling) {
-        console.log("pollReceive: polling");
         const message = await this.receiveDelegate();
-        console.log("pollReceive: received message", message);
         if (message === null) {
-          console.log("pollReceive: end of stream");
           this.notifyEndOfStream();
           break;
         }
         this.notifyReceiver(message);
         if (this.waitingReceivers.length === 0) {
-          console.log("pollReceive: no more waiting receivers");
           break;
         }
       }
     } catch (error) {
-      console.log("pollReceive: error", error);
       this.notifyError(error);
     } finally {
-      console.log("pollReceive: finally");
       this.isPolling = false;
       this.pollPromise = null;
     }
@@ -72,14 +65,16 @@ export class MessageQueue<T> {
 
   private notifyError(error: Error): void {
     while (this.waitingReceivers.length > 0) {
-      const [_predicate, [_resolve, reject], _controller] = this.waitingReceivers.shift()!;
+      const [_predicate, [_resolve, reject], _controller] =
+        this.waitingReceivers.shift()!;
       reject(error);
     }
   }
 
   private notifyEndOfStream(): void {
     while (this.waitingReceivers.length > 0) {
-      const [_predicate, [resolve, _reject], _controller] = this.waitingReceivers.shift()!;
+      const [_predicate, [resolve, _reject], _controller] =
+        this.waitingReceivers.shift()!;
       resolve(null);
     }
   }
@@ -88,20 +83,14 @@ export class MessageQueue<T> {
     const index = this.waitingReceivers.findIndex(
       ([predicate, [_resolve, _reject], _controller]) => predicate(message),
     );
-    console.log("notifyReceiver", index, message);
     if (index === -1) {
       this.pushBack(message);
-      console.log("notifyReceiver: pushed back message", message);
       return;
     }
 
-    console.log("notifyReceiver: found receiver", index, message);
-    const [_predicate, [resolve, _reject], _controller] = this.waitingReceivers.splice(
-      index,
-      1,
-    )[0];
+    const [_predicate, [resolve, _reject], _controller] =
+      this.waitingReceivers.splice(index, 1)[0];
     resolve(message);
-
   }
 
   queuedMessageCount(): number {
@@ -115,7 +104,11 @@ export class MessageQueue<T> {
     }
 
     return new Promise<T | null>(async (resolve, reject) => {
-      this.waitingReceivers.push([predicate, [resolve, reject], abort || new AbortController()]);
+      this.waitingReceivers.push([
+        predicate,
+        [resolve, reject],
+        abort || new AbortController(),
+      ]);
 
       await this.pollReceive();
     });
@@ -147,27 +140,23 @@ export class MessageQueueWithError<T> extends MessageQueue<T> {
     const index = this.waitingReceivers.findIndex(
       ([predicate, [_resolve, _reject], _controller]) => predicate(message),
     );
-    console.log("notifyReceiver 2", index, message);
     if (index === -1) {
       this.pushBack(message);
-      console.log("notifyReceiver 2: pushed back message", message);
       return;
     }
 
-    console.log("notifyReceiver 2: found receiver", index, message);
-    const [_predicate, [resolve, _reject], _controller] = this.waitingReceivers.splice(
-      index,
-      1,
-    )[0];
+    const [_predicate, [resolve, _reject], _controller] =
+      this.waitingReceivers.splice(index, 1)[0];
     resolve(message);
-
   }
 
   async receive(predicate: (message: T) => boolean): Promise<T | null> {
     if (this.error !== undefined) {
       return this.error;
     }
-    const message = await super.receive((message) => predicate(message) || this.errorPredicate(message));
+    const message = await super.receive(
+      (message) => predicate(message) || this.errorPredicate(message),
+    );
     return message;
   }
 }

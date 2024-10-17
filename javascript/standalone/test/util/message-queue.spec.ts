@@ -2,7 +2,10 @@
 // Licensed under the MIT license.
 
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from "vitest";
-import { MessageQueue, MessageQueueWithError } from "../../src/util/message_queue";
+import {
+  MessageQueue,
+  MessageQueueWithError,
+} from "../../src/util/message_queue";
 
 async function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -117,17 +120,18 @@ describe("MessageQueue", () => {
   });
 }, 3500);
 
-
-describe('MessageQueueWithError', () => {
+describe("MessageQueueWithError", () => {
   let mockReceiveDelegate: ReturnType<typeof vi.fn>;
   let errorPredicate: ReturnType<typeof vi.fn>;
   let queue: MessageQueueWithError<string>;
 
-
   beforeEach(() => {
     mockReceiveDelegate = vi.fn();
     errorPredicate = vi.fn();
-    queue = new MessageQueueWithError<string>(mockReceiveDelegate, errorPredicate);
+    queue = new MessageQueueWithError<string>(
+      mockReceiveDelegate,
+      errorPredicate,
+    );
   });
 
   afterEach(() => {
@@ -135,29 +139,31 @@ describe('MessageQueueWithError', () => {
     vi.resetAllMocks();
   });
 
-  it('should return normal messages when no error occurs', async () => {
-    mockReceiveDelegate.mockResolvedValueOnce('message1');
+  it("should return normal messages when no error occurs", async () => {
+    mockReceiveDelegate.mockResolvedValueOnce("message1");
     errorPredicate.mockReturnValue(false);
 
     const result = await queue.receive((m) => m === "message1");
-    expect(result).toBe('message1');
+    expect(result).toBe("message1");
   });
 
-  it('should return error message and enter terminal state', async () => {
-    mockReceiveDelegate.mockResolvedValueOnce('error_message');
+  it("should return error message and enter terminal state", async () => {
+    mockReceiveDelegate.mockResolvedValueOnce("error_message");
     errorPredicate.mockReturnValue(true);
 
     const result1 = await queue.receive(() => false);
-    expect(result1).toBe('error_message');
+    expect(result1).toBe("error_message");
 
     const result2 = await queue.receive(() => false);
-    expect(result2).toBe('error_message');
+    expect(result2).toBe("error_message");
 
     expect(mockReceiveDelegate).toHaveBeenCalledTimes(1);
   });
 
-  it('should notify all pending receivers when error occurs', async () => {
-    mockReceiveDelegate.mockImplementation(delayedResolve('error_message', 100));
+  it("should notify all pending receivers when error occurs", async () => {
+    mockReceiveDelegate.mockImplementation(
+      delayedResolve("error_message", 100),
+    );
     errorPredicate.mockReturnValue(true);
 
     const promise1 = queue.receive(() => false);
@@ -166,33 +172,37 @@ describe('MessageQueueWithError', () => {
 
     const results = await Promise.all([promise1, promise2, promise3]);
 
-    expect(results).toEqual(['error_message', 'error_message', 'error_message']);
+    expect(results).toEqual([
+      "error_message",
+      "error_message",
+      "error_message",
+    ]);
     expect(mockReceiveDelegate).toHaveBeenCalledTimes(1);
   });
 
-  it('should handle null messages correctly', async () => {
+  it("should handle null messages correctly", async () => {
     mockReceiveDelegate.mockResolvedValueOnce(null);
 
     const result = await queue.receive(() => false);
     expect(result).toBeNull();
   });
 
-// //   it('should respect the predicate for non-error messages', async () => {
-// //     mockReceiveDelegate.mockResolvedValueOnce('message1');
-// //     mockReceiveDelegate.mockResolvedValueOnce('message2');
-// //     errorPredicate.mockReturnValue(false);
+  it("should respect the predicate for non-error messages", async () => {
+    mockReceiveDelegate.mockResolvedValueOnce("message1");
+    mockReceiveDelegate.mockResolvedValueOnce("message2");
+    errorPredicate.mockReturnValue(false);
 
-// //     const result1 = await queue.receive(msg => msg === 'message2');
-// //     expect(result1).toBe('message2');
+    const result1 = await queue.receive((msg) => msg === "message2");
+    expect(result1).toBe("message2");
 
-// //     const result2 = await queue.receive(msg => msg === 'message1');
-// //     expect(result2).toBe('message1');
-// //   });
+    const result2 = await queue.receive((msg) => msg === "message1");
+    expect(result2).toBe("message1");
+  });
 
-// //   it('should handle errors in receiveDelegate', async () => {
-// //     const error = new Error('Receive error');
-// //     mockReceiveDelegate.mockRejectedValueOnce(error);
+  it("should handle errors in receiveDelegate", async () => {
+    const error = new Error("Receive error");
+    mockReceiveDelegate.mockRejectedValueOnce(error);
 
-// //     await expect(queue.receive(() => true)).rejects.toThrow('Receive error');
-// //   });
-}, 100);
+    await expect(queue.receive(() => true)).rejects.toThrow("Receive error");
+  });
+}, 500);

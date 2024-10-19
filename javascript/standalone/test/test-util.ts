@@ -9,10 +9,17 @@ export const azureOpenAIKey = process.env.AZURE_OPENAI_API_KEY;
 export const azureOpenAIEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
 export const azureOpenAIDeployment = process.env.AZURE_OPENAI_DEPLOYMENT;
 
-export const runOpenAILiveTests = () =>
-  runLiveTests && openAIKey && openAIModel;
-export const runAzureOpenAILiveTests = () =>
+function undefinedOrEmpty(value: string | undefined): boolean {
+  return value === undefined || value === "";
+}
+
+export const runOpenAILiveTests =
   runLiveTests &&
-  azureOpenAIKey &&
-  azureOpenAIEndpoint &&
-  azureOpenAIDeployment;
+  !(undefinedOrEmpty(openAIKey) || undefinedOrEmpty(openAIModel));
+export const runAzureOpenAILiveTests =
+  runLiveTests &&
+  !(
+    undefinedOrEmpty(azureOpenAIKey) ||
+    undefinedOrEmpty(azureOpenAIEndpoint) ||
+    undefinedOrEmpty(azureOpenAIDeployment)
+  );

@@ -94,7 +94,10 @@ async def receive_response(client: RTClient, response: RTResponse, out_dir: str)
 
 
 async def run(client: RTClient, instructions_file_path: str, user_message_file_path: str, out_dir: str):
-    with open(instructions_file_path, encoding = "utf-8") as instructions_file, open(user_message_file_path, encoding = "utf-8") as user_message_file:
+    with (
+        open(instructions_file_path, encoding="utf-8") as instructions_file,
+        open(user_message_file_path, encoding="utf-8") as user_message_file,
+    ):
         instructions = instructions_file.read()
         user_message = user_message_file.read()
         log("Configuring Session...")

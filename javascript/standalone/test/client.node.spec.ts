@@ -5,13 +5,12 @@ import { describe, expect, it } from "vitest";
 import {
   azureOpenAIDeployment,
   azureOpenAIEndpoint,
-  azureOpenAIKey,
   runAzureOpenAILiveTests,
 } from "./test-util";
 import { LowLevelRTClient } from "../src/client";
 import { DefaultAzureCredential } from "@azure/identity";
 
-describe.runIf(runAzureOpenAILiveTests())(
+describe.runIf(runAzureOpenAILiveTests)(
   "LowLevelRTClient (AzureOpenAI w/EntraID)",
   async () => {
     const options = {

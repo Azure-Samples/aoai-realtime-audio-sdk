@@ -525,7 +525,7 @@ class RTResponse:
         return self._response.output
 
     @property
-    def usage(self) -> Usage:
+    def usage(self) -> Optional[Usage]:
         return self._response.usage
 
     async def cancel(self) -> None:
@@ -540,7 +540,10 @@ class RTResponse:
     async def __anext__(self):
         if self._done:
             raise StopAsyncIteration
-        message = await self.__queue.receive(lambda m: m.type in ["response.done", "response.output_item.added"])
+        message = await self.__queue.receive(
+            lambda m: (m.type == "response.done" and m.response.id == self.id)
+            or (m.type == "response.output_item.added" and m.response_id == self.id)
+        )
         if message is None:
             raise StopAsyncIteration
         if message.type == "error":

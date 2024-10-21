@@ -1,7 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import { afterEach, beforeEach, describe, expect, it, test } from "vitest";
+import {
+  afterEach,
+  assert,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import { LowLevelRTClient, RTClient } from "../src/client";
 import {
   azureOpenAIDeployment,
@@ -216,6 +223,170 @@ describe.each([
             item.id!,
           ),
         ).rejects.toThrow("does not exist");
+      });
+
+      it("generate response properly generates a response when there's input", async () => {
+        await client.configure({ modalities: ["text"], turn_detection: null });
+        const sentItem = await client.sendItem({
+          type: "message",
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: "Repeat exactly the following sentence: Hello, world!",
+            },
+          ],
+        });
+        const response = await client.generateResponse();
+        expect(response).toBeDefined();
+        expect(response.id).toBeDefined();
+        expect(response.id!.length).toBeGreaterThan(0);
+        for await (const item of response) {
+          expect(item).toBeDefined();
+          expect(item.responseId).toBe(response.id);
+          expect(item.previousItemId).toBe(sentItem.id);
+        }
+      });
+
+      it("cancel should properly cancel a response", async () => {
+        await client.configure({ modalities: ["text"], turn_detection: null });
+        const _ = await client.sendItem({
+          type: "message",
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: "Repeat exactly the following sentence: Hello, world!",
+            },
+          ],
+        });
+        const response = await client.generateResponse();
+        await response.cancel();
+
+        let itemCount = 0;
+        for await (const _item of response) {
+          itemCount++;
+        }
+        expect(itemCount).toBe(0);
+        expect(["cancelled", "completed"].includes(response.status));
+      });
+
+      it("items should properly be emitted for text in text out", async () => {
+        await client.configure({ modalities: ["text"], turn_detection: null });
+        const _ = await client.sendItem({
+          type: "message",
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: "Repeat exactly the following sentence: Hello, world!",
+            },
+          ],
+        });
+        const response = await client.generateResponse();
+
+        for await (const item of response) {
+          expect(item.type).toBe("message");
+          assert(item.type === "message");
+          for await (const part of item) {
+            expect(part.type).toBe("text");
+            let text = "";
+            assert(part.type === "text");
+            for await (const chunk of part.textChunks()) {
+              text += chunk;
+            }
+            expect(text).toBe(part.text);
+          }
+        }
+      });
+
+      it("items should properly be emitted for text in audio out", async () => {
+        await client.configure({
+          modalities: ["text", "audio"],
+          turn_detection: null,
+        });
+        const _ = await client.sendItem({
+          type: "message",
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: "Repeat exactly the following sentence: Hello, world!",
+            },
+          ],
+        });
+        const response = await client.generateResponse();
+
+        for await (const item of response) {
+          expect(item.type).toBe("message");
+          assert(item.type === "message");
+          for await (const part of item) {
+            expect(part.type).toBe("audio");
+            assert(part.type === "audio");
+            let byteCount = 0;
+            for await (const chunk of part.audioChunks()) {
+              expect(chunk).toBeDefined();
+              byteCount += chunk.length;
+            }
+            expect(byteCount).toBeGreaterThan(0);
+            let transcript = "";
+            for await (const chunk of part.transcriptChunks()) {
+              transcript += chunk;
+            }
+            expect(transcript).toBe(part.transcript);
+          }
+        }
+      });
+
+      describe("function calling", () => {
+        const functionDeclarations = {
+          get_weather_by_location: {
+            name: "get_weather_by_location",
+            type: "function",
+            description: "A function to get the weather based on a location.",
+            parameters: {
+              type: "object",
+              properties: {
+                city: {
+                  type: "string",
+                  description: "The name of the city to get the weather for.",
+                },
+              },
+              required: ["city"],
+            },
+          },
+        };
+        it("function call item should properly be resolved by chunks", async () => {
+          await client.configure({
+            modalities: ["text"],
+            tools: [functionDeclarations["get_weather_by_location"]],
+            turn_detection: null,
+          });
+          const _ = await client.sendItem({
+            type: "message",
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: "What's the weather like in Seattle, Washington?",
+              },
+            ],
+          });
+          const response = await client.generateResponse();
+
+          for await (const item of response) {
+            expect(item.type).toBe("function_call");
+            assert(item.type === "function_call");
+            expect(item.functionName).toBe("get_weather_by_location");
+
+            let args = "";
+            for await (const chunk of item) {
+              expect(chunk).toBeDefined();
+              args += chunk;
+            }
+            expect(args).toBe(item.arguments);
+          }
+        });
       });
     },
     10000,

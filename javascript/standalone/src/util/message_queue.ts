@@ -160,3 +160,58 @@ export class MessageQueueWithError<T> extends MessageQueue<T> {
     return message;
   }
 }
+
+export class SharedEndQueue<T> {
+  private queue: T[] = [];
+  private lock: Promise<void> = Promise.resolve();
+
+  constructor(
+    private receiveDelegate: () => Promise<T>,
+    private errorPredicate: (message: T) => boolean,
+    private endPredicate: (message: T) => boolean,
+  ) {}
+
+  async receive(predicate: (message: T) => boolean): Promise<T> {
+    const release = await this.acquireLock();
+    try {
+      for (let i = 0; i < this.queue.length; i++) {
+        const message = this.queue[i];
+        if (predicate(message)) {
+          this.queue.splice(i, 1);
+          return message;
+        } else if (this.endPredicate(message)) {
+          return message;
+        }
+      }
+
+      while (true) {
+        const message = await this.receiveDelegate();
+        if (
+          message === null ||
+          this.errorPredicate(message) ||
+          predicate(message)
+        ) {
+          return message;
+        }
+        if (this.endPredicate(message)) {
+          this.queue.push(message);
+          return message;
+        }
+        this.queue.push(message);
+      }
+    } finally {
+      release();
+    }
+  }
+
+  private async acquireLock(): Promise<() => void> {
+    let release: () => void;
+    const newLock = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const oldLock = this.lock;
+    this.lock = newLock;
+    await oldLock;
+    return release!;
+  }
+}

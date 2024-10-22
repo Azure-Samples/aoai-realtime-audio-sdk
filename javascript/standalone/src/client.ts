@@ -552,6 +552,7 @@ class RTFunctionCallItem implements AsyncIterable<string> {
       } else if (message.type === "response.output_item.done") {
         if (message.item.type === "function_call") {
           this.item = message.item;
+          break;
         } else {
           throw new Error("Unexpected item type");
         }
@@ -563,7 +564,6 @@ class RTFunctionCallItem implements AsyncIterable<string> {
         throw new Error(`Unexpected message type: ${message.type}`);
       }
     }
-    throw new Error("Not implemented");
   }
 
   async *[Symbol.asyncIterator](): AsyncIterator<string> {

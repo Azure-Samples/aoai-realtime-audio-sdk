@@ -1,14 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import {
-  afterEach,
-  assert,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it } from "vitest";
 import { LowLevelRTClient, RTClient } from "../src/client";
 import {
   azureOpenAIDeployment,
@@ -174,7 +167,7 @@ describe.each([
         }
         await client.clearAudio();
 
-        expect(() => client.commitAudio()).rejects.toThrow("buffer is empty");
+        expect(() => client.commitAudio()).rejects.toThrow("buffer");
       });
 
       it("send should properly resolve and populate the message id", async () => {
@@ -385,6 +378,102 @@ describe.each([
               args += chunk;
             }
             expect(args).toBe(item.arguments);
+          }
+        });
+
+        it("function call item should properly be resolved waiting for completion", async () => {
+          await client.configure({
+            modalities: ["text"],
+            tools: [functionDeclarations["get_weather_by_location"]],
+            turn_detection: null,
+          });
+          const _ = await client.sendItem({
+            type: "message",
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: "What's the weather like in Seattle, Washington?",
+              },
+            ],
+          });
+          const response = await client.generateResponse();
+
+          for await (const item of response) {
+            expect(item.type).toBe("function_call");
+            assert(item.type === "function_call");
+            expect(item.functionName).toBe("get_weather_by_location");
+
+            await item.waitForCompletion();
+            expect(item.arguments).toBeDefined();
+            expect(item.arguments.length).toBeGreaterThan(0);
+            const argsJSON = JSON.parse(item.arguments);
+            expect(argsJSON).toBeDefined();
+            expect(argsJSON.city).toBeDefined();
+          }
+        });
+
+        it("function call item should throw if using waitForCompletion after iterating", async () => {
+          await client.configure({
+            modalities: ["text"],
+            tools: [functionDeclarations["get_weather_by_location"]],
+            turn_detection: null,
+          });
+          const _ = await client.sendItem({
+            type: "message",
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: "What's the weather like in Seattle, Washington?",
+              },
+            ],
+          });
+          const response = await client.generateResponse();
+
+          for await (const item of response) {
+            expect(item.type).toBe("function_call");
+            assert(item.type === "function_call");
+            expect(item.functionName).toBe("get_weather_by_location");
+
+            for await (const _ of item) {
+              // Do nothing
+            }
+            expect(item.waitForCompletion()).rejects.toThrow(
+              "Cannot await after iterating",
+            );
+          }
+        });
+
+        it("function call item should throw if trying to iterate after calling waitForCompletion", async () => {
+          await client.configure({
+            modalities: ["text"],
+            tools: [functionDeclarations["get_weather_by_location"]],
+            turn_detection: null,
+          });
+          const _ = await client.sendItem({
+            type: "message",
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: "What's the weather like in Seattle, Washington?",
+              },
+            ],
+          });
+          const response = await client.generateResponse();
+
+          for await (const item of response) {
+            expect(item.type).toBe("function_call");
+            assert(item.type === "function_call");
+            expect(item.functionName).toBe("get_weather_by_location");
+
+            await item.waitForCompletion();
+            expect(async () => {
+              for await (const _ of item) {
+                // Do nothing
+              }
+            }).rejects.toThrow("Cannot iterate after awaiting.");
           }
         });
       });

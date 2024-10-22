@@ -12,7 +12,7 @@ from azure.core.credentials import AzureKeyCredential
 from dotenv import load_dotenv
 from scipy.signal import resample
 
-from rtclient import (
+from rtcclient import (
     InputAudioBufferAppendMessage,
     InputAudioTranscription,
     RTLowLevelClient,

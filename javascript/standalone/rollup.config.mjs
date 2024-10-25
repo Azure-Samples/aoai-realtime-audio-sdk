@@ -38,7 +38,7 @@ export default [
       commonjs(),
       typescript({
         downlevelIteration: true,
-        exclude: ["**/*.spec.ts", "**/*.test.ts"],
+        exclude: ["vitest.workspace.mts", "test/**/*.ts"],
       }),
     ],
   },
@@ -72,7 +72,7 @@ export default [
       }),
       typescript({
         downlevelIteration: true,
-        exclude: ["**/*.spec.ts", "**/*.test.ts"],
+        exclude: ["vitest.workspace.mts", "test/**/*.ts"],
       }),
       nodeResolve({
         browser: true,

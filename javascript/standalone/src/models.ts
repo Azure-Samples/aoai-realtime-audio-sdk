@@ -44,7 +44,7 @@ export interface SessionUpdateParams {
   instructions?: string;
   input_audio_format?: AudioFormat;
   output_audio_format?: AudioFormat;
-  input_audio_transcription?: InputAudioTranscription;
+  input_audio_transcription?: InputAudioTranscription | null;
   turn_detection?: TurnDetection;
   tools?: ToolsDefinition;
   tool_choice?: ToolChoice;

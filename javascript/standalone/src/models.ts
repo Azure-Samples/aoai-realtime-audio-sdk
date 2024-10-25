@@ -282,17 +282,18 @@ export type ResponseItemContentPart =
 
 export interface ResponseItemBase {
   id?: string;
-  status: ResponseItemStatus;
 }
 
 export interface ResponseMessageItem extends ResponseItemBase {
   type: MessageItemType;
+  status: ResponseItemStatus;
   role: MessageRole;
   content: ResponseItemContentPart[];
 }
 
 export interface ResponseFunctionCallItem extends ResponseItemBase {
   type: "function_call";
+  status: ResponseItemStatus;
   name: string;
   call_id: string;
   arguments: string;

@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "rtclient"
-version = "0.5.1"
+version = "0.5.2"
 description = "A client for the RT API"
 authors = ["Microsoft Corporation"]
 

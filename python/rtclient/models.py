@@ -364,17 +364,18 @@ ResponseItemContentPart = Annotated[
 
 class ResponseItemBase(BaseModel):
     id: Optional[str]
-    status: ResponseItemStatus
 
 
 class ResponseMessageItem(ResponseItemBase):
     type: MessageItemType = "message"
+    status: ResponseItemStatus
     role: MessageRole
     content: list[ResponseItemContentPart]
 
 
 class ResponseFunctionCallItem(ResponseItemBase):
     type: Literal["function_call"] = "function_call"
+    status: ResponseItemStatus
     name: str
     call_id: str
     arguments: str

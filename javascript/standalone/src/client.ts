@@ -717,6 +717,7 @@ export class RTClient {
   public session: Session | undefined;
 
   private initPromise: Promise<void> | undefined;
+  private iterating: boolean = false;
 
   constructor(credential: KeyCredential, options: RTOpenAIOptions);
   constructor(
@@ -895,55 +896,63 @@ export class RTClient {
     }
   }
 
-  async generateResponse(): Promise<RTResponse> {
+  async generateResponse(): Promise<RTResponse | undefined> {
     await this.init();
     await this.client.send({ type: "response.create" });
-    const message = await this.messageQueue.receive(
-      (m) => m.type === "response.created",
-    );
-    if (message === null) {
-      throw new Error("Failed to create response");
-    } else if (message.type === "error") {
-      throw new RTError(message.error);
-    } else if (message.type === "response.created") {
-      return RTResponse.create(
-        message.response,
-        this.messageQueue,
-        this.client,
-      );
-    }
-    throw new Error("Unexpected message type");
-  }
-
-  async *events(): AsyncIterable<RTInputAudioItem | RTResponse> {
-    // TODO: Add the updated quota message as a control type of event.
-    while (true) {
+    if (!this.iterating) {
       const message = await this.messageQueue.receive(
-        (m) =>
-          m.type === "input_audio_buffer.speech_started" ||
-          m.type === "response.created",
+        (m) => m.type === "response.created",
       );
       if (message === null) {
-        break;
+        throw new Error("Failed to create response");
       } else if (message.type === "error") {
         throw new RTError(message.error);
-      } else if (message.type === "input_audio_buffer.speech_started") {
-        yield RTInputAudioItem.create(
-          message.item_id,
-          message.audio_start_ms,
-          this.session?.input_audio_transcription !== undefined &&
-            this.session?.input_audio_transcription !== null,
-          this.messageQueue,
-        );
       } else if (message.type === "response.created") {
-        yield RTResponse.create(
+        return RTResponse.create(
           message.response,
           this.messageQueue,
           this.client,
         );
-      } else {
-        throw new Error("Unexpected message type");
       }
+      throw new Error("Unexpected message type");
+    }
+    return undefined;
+  }
+
+  async *events(): AsyncIterable<RTInputAudioItem | RTResponse> {
+    // TODO: Add the updated quota message as a control type of event.
+    try {
+      this.iterating = true;
+      while (true) {
+        const message = await this.messageQueue.receive(
+          (m) =>
+            m.type === "input_audio_buffer.speech_started" ||
+            m.type === "response.created",
+        );
+        if (message === null) {
+          break;
+        } else if (message.type === "error") {
+          throw new RTError(message.error);
+        } else if (message.type === "input_audio_buffer.speech_started") {
+          yield RTInputAudioItem.create(
+            message.item_id,
+            message.audio_start_ms,
+            this.session?.input_audio_transcription !== undefined &&
+              this.session?.input_audio_transcription !== null,
+            this.messageQueue,
+          );
+        } else if (message.type === "response.created") {
+          yield RTResponse.create(
+            message.response,
+            this.messageQueue,
+            this.client,
+          );
+        } else {
+          throw new Error("Unexpected message type");
+        }
+      }
+    } finally {
+      this.iterating = false;
     }
   }
 

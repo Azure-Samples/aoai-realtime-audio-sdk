@@ -95,6 +95,19 @@ export {
 
 export { KeyCredential, TokenCredential, AccessToken } from "./util/auth";
 
-export { LowLevelRTClient } from "./client";
+export {
+  LowLevelRTClient,
+  RTAudioContent,
+  RTClient,
+  RTError,
+  RTFunctionCallItem,
+  RTInputAudioItem,
+  RTMessageContent,
+  RTMessageItem,
+  RTResponse,
+  RTTextContent,
+  isFunctionCallItem,
+  isMessageItem,
+} from "./client";
 
 export { RTOpenAIOptions, RTAzureOpenAIOptions } from "./util/interfaces";

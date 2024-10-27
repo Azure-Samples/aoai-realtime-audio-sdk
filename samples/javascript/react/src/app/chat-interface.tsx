@@ -112,19 +112,41 @@ const ChatInterface = () => {
     }
   };
 
+
+
   const startResponseListener = async () => {
     if (!clientRef.current) return;
 
-    // Store the iterator reference so we can break the loop if needed
-    // responseIteratorRef.current = clientRef.current;
-
     try {
-      for await (const response of clientRef.current.events()) {
-        console.log('Response:', response);
-        // setMessages(prevMessages => [...prevMessages, {
-        //   type: 'assistant',
-        //   content: response
-        // }]);
+      for await (const serverEvent of clientRef.current.events()) {
+        if (serverEvent.type === "response") {
+          for await (const item of serverEvent) {
+            if  (item.type === "message" && item.role === "assistant") {
+              const message: Message = {
+                type: item.role,
+                content: "",
+              };
+              setMessages(prevMessages => [...prevMessages, message]);
+              for await (const content of item) {
+                if (content.type === "text") {
+                  for await (const text of content.textChunks()) {
+                    message.content += text;
+                    setMessages(prevMessages => {
+                      prevMessages[prevMessages.length - 1].content = message.content;
+                      return [...prevMessages];
+                    });
+                  }
+                }
+              }
+            }
+          }
+        } else if (serverEvent.type === "input_audio") {
+          await serverEvent.waitForCompletion();
+          setMessages(prevMessages => [...prevMessages, {
+            type: 'user',
+            content: serverEvent.transcription || "",
+          }]);
+        }
       }
     } catch (error) {
       if (clientRef.current) { // Only log error if we haven't intentionally disconnected

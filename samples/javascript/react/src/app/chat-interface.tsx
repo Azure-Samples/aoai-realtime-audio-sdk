@@ -1,13 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState, useRef } from 'react';
-import { Settings, Plus, Send, Mic, MicOff, Power } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import React, { useState, useRef, useEffect } from "react";
+import { Plus, Send, Mic, MicOff, Power } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -25,10 +20,17 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Modality, RTClient } from "rt-client";
+import {
+  Modality,
+  RTClient,
+  RTInputAudioItem,
+  RTResponse,
+  TurnDetection,
+} from "rt-client";
+import { AudioHandler } from "@/lib/audio";
 
 interface Message {
-  type: 'user' | 'assistant' | 'status';
+  type: "user" | "assistant" | "status";
   content: string;
 }
 
@@ -40,32 +42,34 @@ interface ToolDeclaration {
 
 const ChatInterface = () => {
   const [isAzure, setIsAzure] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  const [endpoint, setEndpoint] = useState('');
-  const [deployment, setDeployment] = useState('');
-  const [instructions, setInstructions] = useState('');
+  const [apiKey, setApiKey] = useState("");
+  const [endpoint, setEndpoint] = useState("");
+  const [deployment, setDeployment] = useState("");
+  const [useVAD, setUseVAD] = useState(true);
+  const [instructions, setInstructions] = useState("");
   const [temperature, setTemperature] = useState(0.9);
-  const [modality, setModality] = useState('text');
+  const [modality, setModality] = useState("audio");
   const [tools, setTools] = useState<ToolDeclaration[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [currentMessage, setCurrentMessage] = useState('');
+  const [currentMessage, setCurrentMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const clientRef = useRef<RTClient | null>(null);
+  const audioHandlerRef = useRef<AudioHandler | null>(null);
 
   const addTool = () => {
-    setTools([...tools, { name: '', parameters: '', returnValue: '' }]);
+    setTools([...tools, { name: "", parameters: "", returnValue: "" }]);
   };
 
   const updateTool = (index: number, field: string, value: string) => {
     const newTools = [...tools];
 
-    if (field === 'name') {
+    if (field === "name") {
       newTools[index].name = value;
-    } else if (field === 'parameters') {
+    } else if (field === "parameters") {
       newTools[index].parameters = value;
-    } else if (field === 'returnValue') {
+    } else if (field === "returnValue") {
       newTools[index].returnValue = value;
     }
   };
@@ -74,27 +78,34 @@ const ChatInterface = () => {
     if (!isConnected) {
       try {
         setIsConnecting(true);
-        // Construct the client with current settings
-        clientRef.current = isAzure ? new RTClient(new URL(endpoint), { key: apiKey} , { deployment }) : new RTClient({ key: apiKey }, { model: 'gpt-4o-realtime-preview-2024-10-01'});
-        const modalities: Modality[] = modality === 'audio' ? ['text', 'audio'] : ['text'];
+        clientRef.current = isAzure
+          ? new RTClient(new URL(endpoint), { key: apiKey }, { deployment })
+          : new RTClient(
+              { key: apiKey },
+              { model: "gpt-4o-realtime-preview-2024-10-01" },
+            );
+        const modalities: Modality[] =
+          modality === "audio" ? ["text", "audio"] : ["text"];
+        const turnDetection: TurnDetection = useVAD
+          ? { type: "server_vad" }
+          : null;
         clientRef.current.configure({
-          instructions,
+          instructions: instructions?.length > 0 ? instructions : undefined,
+          input_audio_transcription: { model: "whisper-1" },
+          turn_detection: turnDetection,
           tools,
           temperature,
           modalities,
-        })
-        // Start listening for responses
+        });
         startResponseListener();
 
         setIsConnected(true);
       } catch (error) {
-        console.error('Connection failed:', error);
-        // Here you might want to show an error message to the user
+        console.error("Connection failed:", error);
       } finally {
         setIsConnecting(false);
       }
     } else {
-      // Disconnect logic
       await disconnect();
     }
   };
@@ -104,15 +115,65 @@ const ChatInterface = () => {
       try {
         await clientRef.current.close();
         clientRef.current = null;
-        // responseIteratorRef.current = null;
         setIsConnected(false);
       } catch (error) {
-        console.error('Disconnect failed:', error);
+        console.error("Disconnect failed:", error);
       }
     }
   };
 
+  const handleResponse = async (response: RTResponse) => {
+    for await (const item of response) {
+      if (item.type === "message" && item.role === "assistant") {
+        const message: Message = {
+          type: item.role,
+          content: "",
+        };
+        setMessages((prevMessages) => [...prevMessages, message]);
+        for await (const content of item) {
+          if (content.type === "text") {
+            for await (const text of content.textChunks()) {
+              message.content += text;
+              setMessages((prevMessages) => {
+                prevMessages[prevMessages.length - 1].content = message.content;
+                return [...prevMessages];
+              });
+            }
+          } else if (content.type === "audio") {
+            const textTask = async () => {
+              for await (const text of content.transcriptChunks()) {
+                message.content += text;
+                setMessages((prevMessages) => {
+                  prevMessages[prevMessages.length - 1].content =
+                    message.content;
+                  return [...prevMessages];
+                });
+              }
+            };
+            const audioTask = async () => {
+              audioHandlerRef.current?.startStreamingPlayback();
+              for await (const audio of content.audioChunks()) {
+                audioHandlerRef.current?.playChunk(audio);
+              }
+            };
+            await Promise.all([textTask(), audioTask()]);
+          }
+        }
+      }
+    }
+  };
 
+  const handleInputAudio = async (item: RTInputAudioItem) => {
+    audioHandlerRef.current?.stopStreamingPlayback();
+    await item.waitForCompletion();
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      {
+        type: "user",
+        content: item.transcription || "",
+      },
+    ]);
+  };
 
   const startResponseListener = async () => {
     if (!clientRef.current) return;
@@ -120,37 +181,14 @@ const ChatInterface = () => {
     try {
       for await (const serverEvent of clientRef.current.events()) {
         if (serverEvent.type === "response") {
-          for await (const item of serverEvent) {
-            if  (item.type === "message" && item.role === "assistant") {
-              const message: Message = {
-                type: item.role,
-                content: "",
-              };
-              setMessages(prevMessages => [...prevMessages, message]);
-              for await (const content of item) {
-                if (content.type === "text") {
-                  for await (const text of content.textChunks()) {
-                    message.content += text;
-                    setMessages(prevMessages => {
-                      prevMessages[prevMessages.length - 1].content = message.content;
-                      return [...prevMessages];
-                    });
-                  }
-                }
-              }
-            }
-          }
+          await handleResponse(serverEvent);
         } else if (serverEvent.type === "input_audio") {
-          await serverEvent.waitForCompletion();
-          setMessages(prevMessages => [...prevMessages, {
-            type: 'user',
-            content: serverEvent.transcription || "",
-          }]);
+          await handleInputAudio(serverEvent);
         }
       }
     } catch (error) {
-      if (clientRef.current) { // Only log error if we haven't intentionally disconnected
-        console.error('Response iteration error:', error);
+      if (clientRef.current) {
+        console.error("Response iteration error:", error);
       }
     }
   };
@@ -158,37 +196,68 @@ const ChatInterface = () => {
   const sendMessage = async () => {
     if (currentMessage.trim() && clientRef.current) {
       try {
-        setMessages(prevMessages => [...prevMessages, {
-          type: 'user',
-          content: currentMessage
-        }]);
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          {
+            type: "user",
+            content: currentMessage,
+          },
+        ]);
 
-        await clientRef.current.sendItem({ type: "message", role: "user", content: [{ type: "input_text", text: currentMessage }] });
+        await clientRef.current.sendItem({
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: currentMessage }],
+        });
         await clientRef.current.generateResponse();
-        setCurrentMessage('');
+        setCurrentMessage("");
       } catch (error) {
-        console.error('Failed to send message:', error);
-        // Here you might want to show an error message to the user
+        console.error("Failed to send message:", error);
       }
     }
   };
 
-  const toggleRecording = () => {
-    if (!isRecording) {
-      // Start recording
-      setIsRecording(true);
-      // Here you would call your recorder.start() method
-    } else {
-      // Stop recording
-      setIsRecording(false);
-      // Here you would call your recorder.stop() method
+  const toggleRecording = async () => {
+    if (!isRecording && clientRef.current) {
+      try {
+        if (!audioHandlerRef.current) {
+          audioHandlerRef.current = new AudioHandler();
+          await audioHandlerRef.current.initialize();
+        }
+        await audioHandlerRef.current.startRecording(async (chunk) => {
+          await clientRef.current?.sendAudio(chunk);
+        });
+        setIsRecording(true);
+      } catch (error) {
+        console.error("Failed to start recording:", error);
+      }
+    } else if (audioHandlerRef.current) {
+      try {
+        audioHandlerRef.current.stopRecording();
+        if (!useVAD) {
+          const inputAudio = await clientRef.current?.commitAudio();
+          await handleInputAudio(inputAudio!);
+          await clientRef.current?.generateResponse();
+        }
+        setIsRecording(false);
+      } catch (error) {
+        console.error("Failed to stop recording:", error);
+      }
     }
   };
 
-  // Cleanup on unmount
-  React.useEffect(() => {
+  useEffect(() => {
+    const initAudioHandler = async () => {
+      const handler = new AudioHandler();
+      await handler.initialize();
+      audioHandlerRef.current = handler;
+    };
+
+    initAudioHandler().catch(console.error);
+
     return () => {
       disconnect();
+      audioHandlerRef.current?.close().catch(console.error);
     };
   }, []);
 
@@ -246,6 +315,14 @@ const ChatInterface = () => {
                 Conversation Settings
               </AccordionTrigger>
               <AccordionContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span>Use Server VAD</span>
+                  <Switch
+                    checked={useVAD}
+                    onCheckedChange={setUseVAD}
+                    disabled={isConnected}
+                  />
+                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Instructions</label>
                   <textarea
@@ -263,21 +340,27 @@ const ChatInterface = () => {
                       <Input
                         placeholder="Function name"
                         value={tool.name}
-                        onChange={(e) => updateTool(index, 'name', e.target.value)}
+                        onChange={(e) =>
+                          updateTool(index, "name", e.target.value)
+                        }
                         className="mb-2"
                         disabled={isConnected}
                       />
                       <Input
                         placeholder="Parameters"
                         value={tool.parameters}
-                        onChange={(e) => updateTool(index, 'parameters', e.target.value)}
+                        onChange={(e) =>
+                          updateTool(index, "parameters", e.target.value)
+                        }
                         className="mb-2"
                         disabled={isConnected}
                       />
                       <Input
                         placeholder="Return value"
                         value={tool.returnValue}
-                        onChange={(e) => updateTool(index, 'returnValue', e.target.value)}
+                        onChange={(e) =>
+                          updateTool(index, "returnValue", e.target.value)
+                        }
                         disabled={isConnected}
                       />
                     </Card>
@@ -287,7 +370,7 @@ const ChatInterface = () => {
                     size="sm"
                     onClick={addTool}
                     className="w-full"
-                    disabled={isConnected}
+                    disabled={isConnected || true}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Tool
@@ -295,7 +378,9 @@ const ChatInterface = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Temperature ({temperature})</label>
+                  <label className="text-sm font-medium">
+                    Temperature ({temperature})
+                  </label>
                   <Slider
                     value={[temperature]}
                     onValueChange={([value]) => setTemperature(value)}
@@ -335,7 +420,11 @@ const ChatInterface = () => {
           disabled={isConnecting}
         >
           <Power className="w-4 h-4 mr-2" />
-          {isConnecting ? "Connecting..." : isConnected ? "Disconnect" : "Connect"}
+          {isConnecting
+            ? "Connecting..."
+            : isConnected
+              ? "Disconnect"
+              : "Connect"}
         </Button>
       </div>
 
@@ -347,9 +436,9 @@ const ChatInterface = () => {
             <div
               key={index}
               className={`mb-4 p-3 rounded-lg ${
-                message.type === 'user'
-                  ? 'bg-blue-100 ml-auto max-w-[80%]'
-                  : 'bg-gray-100 mr-auto max-w-[80%]'
+                message.type === "user"
+                  ? "bg-blue-100 ml-auto max-w-[80%]"
+                  : "bg-gray-100 mr-auto max-w-[80%]"
               }`}
             >
               {message.content}
@@ -364,7 +453,7 @@ const ChatInterface = () => {
               value={currentMessage}
               onChange={(e) => setCurrentMessage(e.target.value)}
               placeholder="Type your message..."
-              onKeyUp={(e) => e.key === 'Enter' && sendMessage()}
+              onKeyUp={(e) => e.key === "Enter" && sendMessage()}
               disabled={!isConnected}
             />
             <Button
@@ -373,12 +462,13 @@ const ChatInterface = () => {
               className={isRecording ? "bg-red-100" : ""}
               disabled={!isConnected}
             >
-              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              {isRecording ? (
+                <MicOff className="w-4 h-4" />
+              ) : (
+                <Mic className="w-4 h-4" />
+              )}
             </Button>
-            <Button
-              onClick={sendMessage}
-              disabled={!isConnected}
-            >
+            <Button onClick={sendMessage} disabled={!isConnected}>
               <Send className="w-4 h-4" />
             </Button>
           </div>

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "format": "prettier --write src"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.1",
@@ -31,6 +32,7 @@
     "eslint": "^8",
     "eslint-config-next": "15.0.1",
     "postcss": "^8",
+    "prettier": "^3.3.3",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

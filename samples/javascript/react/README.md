@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RTClient Chat Sample
+
+A Next.js-based chat application demonstrating the usage of RTClient for real-time conversations with OpenAI and Azure OpenAI models. This sample showcases text and audio interactions, streaming responses, and various configuration options.
+
+## Features
+
+- 🔄 Real-time text and audio conversations
+- 🎙️ Audio recording and streaming playback
+- 🔊 Voice Activity Detection (VAD) support
+- ☁️ Support for both OpenAI and Azure OpenAI
+- 🛠️ Configurable conversation settings
+- 🔧 Tool integration support (coming soon)
+
+## Prerequisites
+
+- Node.js (version 18 or higher)
+- npm or yarn
+- An API key from OpenAI or Azure OpenAI
+- For Azure OpenAI: deployment name and endpoint URL
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd <project-directory>
+```
 
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+```
+
+3. Start the development server:
 ```bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Connection Settings
 
-## Learn More
+- Toggle between OpenAI and Azure OpenAI
+- Enter your API credentials
+- For Azure OpenAI, provide the endpoint URL and deployment name
 
-To learn more about Next.js, take a look at the following resources:
+### Conversation Settings
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Server VAD**: Enable/disable server-side Voice Activity Detection
+- **Instructions**: Set custom instructions for the conversation
+- **Temperature**: Adjust response randomness (0.6-1.2)
+- **Modality**: Choose between text-only or audio+text interactions
+- **Tools**: Configure function calling capabilities (coming soon)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+src/
+├── app/
+│   └── page.tsx          # Main application page
+├── components/
+│   └── ui/              # shadcn/ui components
+├── lib/
+│   └── audio.ts         # Audio processing utilities
+└── chat-interface.tsx   # Main chat component
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Dependencies
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `rt-client`: Real-time client library for OpenAI/Azure OpenAI
+- `shadcn/ui`: UI component library
+- `lucide-react`: Icon library
+- Web Audio API for audio processing

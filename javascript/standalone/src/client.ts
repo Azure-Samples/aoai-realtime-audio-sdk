@@ -7,6 +7,7 @@ import {
   Item,
   ItemInputAudioTranscriptionCompletedMessage,
   ItemInputAudioTranscriptionFailedMessage,
+  MessageRole,
   RealtimeError,
   Response,
   ResponseAudioDeltaMessage,
@@ -18,6 +19,7 @@ import {
   ResponseFunctionCallItem,
   ResponseItem,
   ResponseItemAudioContentPart,
+  ResponseItemStatus,
   ResponseItemTextContentPart,
   ResponseMessageItem,
   ResponseStatus,
@@ -164,6 +166,7 @@ export class RTError extends Error {
 type Optional<T> = T | undefined;
 
 class RTInputAudioItem {
+  public type: "input_audio" = "input_audio";
   public audioEndMillis: Optional<number> = undefined;
   public transcription: Optional<string> = undefined;
 
@@ -464,6 +467,14 @@ class RTMessageItem implements AsyncIterable<RTMessageContent> {
     return this.item.id!;
   }
 
+  get role(): MessageRole {
+    return this.item.role;
+  }
+
+  get status(): ResponseItemStatus {
+    return this.item.status;
+  }
+
   async *[Symbol.asyncIterator]() {
     while (true) {
       const message = await this.queue.receive(
@@ -600,6 +611,7 @@ export function isFunctionCallItem(
 }
 
 class RTResponse implements AsyncIterable<RTOutputItem> {
+  public type: "response" = "response";
   private done: boolean = false;
 
   private constructor(

@@ -19,8 +19,7 @@ class PlaybackWorklet extends AudioWorkletProcessor {
     const channel = output[0];
 
     if (this.buffer.length > channel.length) {
-      const toProcess = this.buffer.slice(0, channel.length);
-      this.buffer = this.buffer.slice(channel.length);
+      const toProcess = this.buffer.splice(0, channel.length);
       channel.set(toProcess.map((v) => v / 32768));
     } else {
       channel.set(this.buffer.map((v) => v / 32768));

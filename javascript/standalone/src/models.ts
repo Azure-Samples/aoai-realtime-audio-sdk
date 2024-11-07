@@ -185,6 +185,13 @@ export interface ResponseCancelMessage extends ClientMessageBase {
   type: "response.cancel";
 }
 
+export interface ExtensionAvatarConnectMessage extends ClientMessageBase {
+  type: "extension.avatar.connect";
+  client_description: string;
+  customized?: boolean;
+  avatar_id?: string;
+}
+
 export interface RealtimeError {
   message: string;
   type?: string;
@@ -216,6 +223,7 @@ export interface Session {
   tool_choice: ToolChoice;
   temperature: number;
   max_response_output_tokens?: number;
+  ice_servers?: RTCIceServer[];
 }
 
 export interface SessionCreatedMessage extends ServerMessageBase {
@@ -513,6 +521,11 @@ export interface RateLimitsUpdatedMessage extends ServerMessageBase {
   rate_limits: RateLimits[];
 }
 
+export interface ExtensionAvatarConnectingMessage extends ServerMessageBase {
+  type: "extension.avatar.connecting";
+  server_description: string;
+}
+
 export type UserMessageType =
   | SessionUpdateMessage
   | InputAudioBufferAppendMessage
@@ -522,7 +535,8 @@ export type UserMessageType =
   | ItemTruncateMessage
   | ItemDeleteMessage
   | ResponseCreateMessage
-  | ResponseCancelMessage;
+  | ResponseCancelMessage
+  | ExtensionAvatarConnectMessage;
 
 export type ServerMessageType =
   | ErrorMessage
@@ -551,4 +565,5 @@ export type ServerMessageType =
   | ResponseAudioDoneMessage
   | ResponseFunctionCallArgumentsDeltaMessage
   | ResponseFunctionCallArgumentsDoneMessage
-  | RateLimitsUpdatedMessage;
+  | RateLimitsUpdatedMessage
+  | ExtensionAvatarConnectingMessage;

@@ -7,6 +7,8 @@ export {
   AudioFormat,
   ClientMessageBase,
   ErrorMessage,
+  ExtensionAvatarConnectMessage,
+  ExtensionAvatarConnectingMessage,
   FunctionCallItem,
   FunctionCallOutputItem,
   FunctionToolChoice,

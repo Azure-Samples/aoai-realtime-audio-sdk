@@ -16,7 +16,7 @@ export function openAISettings(
   credential: KeyCredential,
   options: RTOpenAIOptions,
 ): ConnectionSettings {
-  const uri = new URL("wss://api.openai.com/v1/realtime");
+  const uri = options?.endpoint ?? new URL("wss://api.openai.com/v1/realtime");
   uri.searchParams.set("model", options.model);
   return {
     uri,

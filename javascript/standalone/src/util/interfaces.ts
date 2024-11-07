@@ -15,6 +15,7 @@ export interface ConnectionSettings {
 
 export interface RTOpenAIOptions {
   model: string;
+  endpoint?: URL;
 }
 
 export interface RTAzureOpenAIOptions {

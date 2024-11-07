@@ -74,7 +74,7 @@ export const MessageItemType = "message" as const;
 export type MessageItemType = typeof MessageItemType;
 
 export interface InputTextContentPart {
-  type: "input_text";
+  type: "input_text" | "text";
   text: string;
 }
 

@@ -61,45 +61,56 @@ function createConfigMessage() : SessionUpdateMessage {
   return configMessage;
 }
 
+interface MessageBase {
+  type: string;
+  [key: string]: any;
+}
+
+type MessageHandler = (message: MessageBase) => void;
+
+const messageHandlers = new Map<string, MessageHandler>([
+  ["session.created", () => {
+    setFormInputState(InputState.ReadyToStop);
+    makeNewTextBlock("<< Session Started >>");
+    makeNewTextBlock();
+  }],
+  
+  ["response.audio_transcript.delta", (message) => {
+    appendToTextBlock(message.delta);
+  }],
+  
+  ["response.audio.delta", (message) => {
+    const binary = atob(message.delta);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const pcmData = new Int16Array(bytes.buffer);
+    audioPlayer.play(pcmData);
+  }],
+  
+  ["input_audio_buffer.speech_started", () => {
+    makeNewTextBlock("<< Speech Started >>");
+    let textElements = formReceivedTextContainer.children;
+    latestInputSpeechBlock = textElements[textElements.length - 1];
+    makeNewTextBlock();
+    audioPlayer.clear();
+  }],
+  
+  ["conversation.item.input_audio_transcription.completed", (message) => {
+    latestInputSpeechBlock.textContent += " User: " + message.transcript;
+  }],
+  
+  ["response.done", () => {
+    formReceivedTextContainer.appendChild(document.createElement("hr"));
+  }]
+]);
+
 async function handleRealtimeMessages() {
   for await (const message of realtimeStreaming.messages()) {
-    let consoleLog = "" + message.type;
-
-    switch (message.type) {
-      case "session.created":
-        setFormInputState(InputState.ReadyToStop);
-        makeNewTextBlock("<< Session Started >>");
-        makeNewTextBlock();
-        break;
-      case "response.audio_transcript.delta":
-        appendToTextBlock(message.delta);
-        break;
-      case "response.audio.delta":
-        const binary = atob(message.delta);
-        const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-        const pcmData = new Int16Array(bytes.buffer);
-        audioPlayer.play(pcmData);
-        break;
-
-      case "input_audio_buffer.speech_started":
-        makeNewTextBlock("<< Speech Started >>");
-        let textElements = formReceivedTextContainer.children;
-        latestInputSpeechBlock = textElements[textElements.length - 1];
-        makeNewTextBlock();
-        audioPlayer.clear();
-        break;
-      case "conversation.item.input_audio_transcription.completed":
-        latestInputSpeechBlock.textContent += " User: " + message.transcript;
-        break;
-      case "response.done":
-        formReceivedTextContainer.appendChild(document.createElement("hr"));
-        break;
-      default:
-        consoleLog = JSON.stringify(message, null, 2);
-        break
-    }
-    if (consoleLog) {
-      console.log(consoleLog);
+    const handler = messageHandlers.get(message.type);
+    
+    if (handler) {
+      handler(message);      
+    } else {
+      console.log(JSON.stringify(message, null, 2));
     }
   }
   resetAudio(false);

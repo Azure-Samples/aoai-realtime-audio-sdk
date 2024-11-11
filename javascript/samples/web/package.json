@@ -17,7 +17,7 @@
     "vite": "^5.4.8"
   },
   "dependencies": {
-    "@azure/identity": "^4.4.1",    
+    "@azure/identity": "^4.4.1",
     "rt-client": "https://github.com/Azure-Samples/aoai-realtime-audio-sdk/releases/download/js/v0.5.0/rt-client-0.5.0.tgz"
   },
   "files": [

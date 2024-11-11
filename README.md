@@ -184,7 +184,7 @@ See [realtime-openapi3.yml](realtime-openapi3.yml) for full parameter details.
 | `rate_limits.updated` | Sent immediately after `response.done`, this provides the current rate limit information reflecting updated status after the consumption of the just-finished response. |
 | **Item Flow in a Response** | |
 | `response.output_item.added` | Notifies that a new, server-generated conversation item *is being created*; content will then be populated via incremental `add_content` messages with a final `response.output_item.done` command signifying the item creation has completed. |
-| `response_output_item_done` | Notifies that a new conversation item has completed its addition into a conversation. For model-generated messages, this is preceded by `response.output_item.added` and `*delta*` commands which begin and populate the new item, respectively. |
+| `response.output_item.done` | Notifies that a new conversation item has completed its addition into a conversation. For model-generated messages, this is preceded by `response.output_item.added` and `*delta*` commands which begin and populate the new item, respectively. |
 | **Content Flow within Response Items** | |
 | `response.content_part.added` | Notifies that a new content part is being created within a conversation item in an ongoing response. Until `response_content_part_done` arrives, content will then be incrementally provided via appropriate `*delta`* commands. |
 | `response.content_part.done` | Signals that a newly created content part is complete and will receive no further incremental updates. |

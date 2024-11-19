@@ -14,7 +14,7 @@ from pydantic import (
 
 from rtclient.util.model_helpers import ModelWithDefaults
 
-Voice = Literal["alloy", "shimmer", "echo"]
+Voice = Literal["alloy", "shimmer", "echo", "ash", "ballad", "coral", "sage", "verse"]
 AudioFormat = Literal["pcm16", "g711-ulaw", "g711-alaw"]
 Modality = Literal["text", "audio"]
 

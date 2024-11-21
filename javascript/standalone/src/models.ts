@@ -379,10 +379,23 @@ export type ResponseStatusDetails =
   | ResponseIncompleteDetails
   | ResponseFailedDetails;
 
+export interface InputTokenDetails {
+  cached_tokens: number;
+  text_tokens: number;
+  audio_tokens: number;
+}
+
+export interface OutputTokenDetails {
+  text_tokens: number;
+  audio_tokens: number;
+}
+
 export interface Usage {
   total_tokens: number;
   input_tokens: number;
   output_tokens: number;
+  input_token_details: InputTokenDetails;
+  output_token_details: OutputTokenDetails;
 }
 
 export interface Response {

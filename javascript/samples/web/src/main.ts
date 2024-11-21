@@ -4,7 +4,7 @@
 import { Player } from "./player.ts";
 import { Recorder } from "./recorder.ts";
 import "./style.css";
-import { LowLevelRTClient, SessionUpdateMessage } from "rt-client";
+import { LowLevelRTClient, SessionUpdateMessage, Voice } from "rt-client";
 
 let realtimeStreaming: LowLevelRTClient;
 let audioRecorder: Recorder;
@@ -212,8 +212,8 @@ function getTemperature(): number {
   return parseFloat(formTemperatureField.value);
 }
 
-function getVoice(): "alloy" | "echo" | "shimmer" {
-  return formVoiceSelection.value as "alloy" | "echo" | "shimmer";
+function getVoice(): Voice {
+  return formVoiceSelection.value as Voice;
 }
 
 function makeNewTextBlock(text: string = "") {

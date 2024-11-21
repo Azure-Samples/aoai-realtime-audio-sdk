@@ -166,6 +166,8 @@ const formStartButton =
   document.querySelector<HTMLButtonElement>("#start-recording")!;
 const formStopButton =
   document.querySelector<HTMLButtonElement>("#stop-recording")!;
+const formClearAllButton =
+  document.querySelector<HTMLButtonElement>("#clear-all")!;
 const formEndpointField =
   document.querySelector<HTMLInputElement>("#endpoint")!;
 const formAzureToggle =
@@ -265,6 +267,10 @@ formStopButton.addEventListener("click", async () => {
   resetAudio(false);
   realtimeStreaming.close();
   setFormInputState(InputState.ReadyToStart);
+});
+
+formClearAllButton.addEventListener("click", async () => {
+  formReceivedTextContainer.innerHTML = "";
 });
 
 formEndpointField.addEventListener('change', async () => {

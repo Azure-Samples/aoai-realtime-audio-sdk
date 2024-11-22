@@ -37,6 +37,7 @@
   "files": [
     "dist"
   ],
+  "type": "module",
   "exports": {
     "./package.json": "./package.json",
     ".": {

@@ -13,16 +13,18 @@ import {
 import { Player, Recorder } from "@/lib/audio";
 import { WebSocketClient } from "@/lib/client";
 
-interface Message {
-  type: "user" | "assistant" | "status";
+interface ContentMessage {
+  id: string;
+  type: "user" | "assistant";
   content: string;
 }
 
-interface Transcription {
-  id: string;
-  type:  "transcription";
-  text: string;
+interface StatusMessage {
+  type: "status";
+  content: string;
 }
+
+type Message = ContentMessage | StatusMessage;
 
 interface TextDelta {
   id: string;
@@ -30,13 +32,38 @@ interface TextDelta {
   delta: string;
 }
 
-interface ControlMessage {
+interface Transcription {
   id: string;
-  type: "control";
-  action: "speech_started" | "text_done";
+  type: "transcription";
+  text: string;
 }
 
-type WSMessage = Transcription | TextDelta | ControlMessage;
+interface UserMessage {
+  id: string;
+  type: "user_message";
+  text: string;
+}
+
+interface SpeechStarted {
+  type: "control";
+  action: "speech_started";
+}
+
+interface Connected {
+  type: "control";
+  action: "connected";
+  greeting: string;
+}
+
+interface TextDone {
+  type: "control";
+  action: "text_done";
+  id: string;
+}
+
+type ControlMessage = SpeechStarted | Connected | TextDone;
+
+type WSMessage = TextDelta | Transcription | UserMessage | ControlMessage;
 
 function isValidURL(url: string) {
   try {
@@ -68,26 +95,44 @@ const ChatInterface = () => {
     for await (const message of webSocketClient.current!) {
       if (message.type === "text") {
         const data = JSON.parse(message.data) as WSMessage;
-        console.log(data);
         switch (data.type) {
           case "transcription":
             setMessages([
               ...messages,
               {
+                id: data.id,
                 type: "user",
                 content: data.text,
               },
             ]);
             break;
           case "text_delta":
-            setMessages([
-              ...messages,
-              {
-                type: "assistant",
-                content: data.delta,
-              }]);
+            setMessages((current) => {
+              const idx = current.findIndex((m) => m.type === "assistant" && m.id === data.id);
+              if (idx === -1) {
+                return [...current, {
+                  id: data.id,
+                  type: "assistant",
+                  content: data.delta,
+                }];
+              } else {
+                current[idx].content += data.delta;
+              }
+              return current;
+            });
             break;
           case "control":
+            if (data.action === "connected") {
+              setMessages([
+                ...messages,
+                {
+                  type: "status",
+                  content: data.greeting,
+                }
+              ]);
+            } else if (data.action === "speech_started") {
+              audioPlayerRef.current?.clear();
+            }
             break;
 
           default:
@@ -137,6 +182,7 @@ const ChatInterface = () => {
       setMessages([
         ...messages,
         {
+          id: Math.random().toString(36),
           type: "user",
           content: currentMessage,
         },

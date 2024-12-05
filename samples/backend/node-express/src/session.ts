@@ -93,6 +93,10 @@ export class RTSession {
     this.ws.send(JSON.stringify(message));
   }
 
+  private sendBinary(message: ArrayBuffer) {
+    this.ws.send(Buffer.from(message), { binary: true });
+  }
+
   private initializeClient(backend: string | undefined): RTClient {
     this.logger.debug({ backend }, "Initializing RT client");
 
@@ -193,7 +197,7 @@ export class RTSession {
   private async handleAudioContent(content: RTAudioContent) {
     const handleAudioChunks = async () => {
       for await (const chunk of content.audioChunks()) {
-        this.ws.send(chunk.buffer);
+        this.sendBinary(chunk.buffer);
       }
     };
     const handleAudioTranscript = async () => {
@@ -239,7 +243,7 @@ export class RTSession {
       await event.waitForCompletion();
 
       const transcription: Transcription = {
-        id: (event as any).id as string,
+        id: event.id,
         type: "transcription",
         text: event.transcription || "",
       };

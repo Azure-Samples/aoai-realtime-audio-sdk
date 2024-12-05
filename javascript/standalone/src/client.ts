@@ -173,7 +173,7 @@ class RTInputAudioItem {
   private waitPromise: Promise<void> | null = null;
 
   private constructor(
-    private id: string,
+    public readonly id: string,
     public audioStartMillis: Optional<number>,
     private hasTranscription: boolean,
     private queue: MessageQueueWithError<ServerMessageType>,

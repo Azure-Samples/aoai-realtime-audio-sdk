@@ -13,66 +13,68 @@ import {
 import { Player, Recorder } from "@/lib/audio";
 import { WebSocketClient } from "@/lib/client";
 
-interface ContentMessage {
+interface Message {
   id: string;
-  type: "user" | "assistant";
+  type: "user" | "assistant" | "status";
   content: string;
 }
 
-interface StatusMessage {
-  type: "status";
-  content: string;
+type WSControlAction = "speech_started" | "connected" | "text_done";
+
+interface WSMessage {
+  id?: string;
+  type: "text_delta" | "transcription" | "user_message" | "control";
+  delta?: string;
+  text?: string;
+  action?: WSControlAction;
+  greeting?: string;
 }
 
-type Message = ContentMessage | StatusMessage;
+const useAudioHandlers = () => {
+  const audioPlayerRef = useRef<Player | null>(null);
+  const audioRecorderRef = useRef<Recorder | null>(null);
 
-interface TextDelta {
-  id: string;
-  type: "text_delta";
-  delta: string;
-}
+  const initAudioPlayer = async () => {
+    if (!audioPlayerRef.current) {
+      audioPlayerRef.current = new Player();
+      await audioPlayerRef.current.init(24000);
+    }
+    return audioPlayerRef.current;
+  };
 
-interface Transcription {
-  id: string;
-  type: "transcription";
-  text: string;
-}
+  const handleAudioRecord = async (
+    webSocketClient: WebSocketClient | null,
+    isRecording: boolean
+  ) => {
+    if (!isRecording && webSocketClient) {
+      if (!audioRecorderRef.current) {
+        audioRecorderRef.current = new Recorder(async (buffer) => {
+          await webSocketClient?.send({ type: "binary", data: buffer });
+        });
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          sampleRate: 24000,
+        },
+      });
+      await audioRecorderRef.current.start(stream);
+      return true;
+    } else if (audioRecorderRef.current) {
+      await audioRecorderRef.current.stop();
+      audioRecorderRef.current = null;
+      return false;
+    }
+    return isRecording;
+  };
 
-interface UserMessage {
-  id: string;
-  type: "user_message";
-  text: string;
-}
-
-interface SpeechStarted {
-  type: "control";
-  action: "speech_started";
-}
-
-interface Connected {
-  type: "control";
-  action: "connected";
-  greeting: string;
-}
-
-interface TextDone {
-  type: "control";
-  action: "text_done";
-  id: string;
-}
-
-type ControlMessage = SpeechStarted | Connected | TextDone;
-
-type WSMessage = TextDelta | Transcription | UserMessage | ControlMessage;
-
-function isValidURL(url: string) {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
+  return {
+    audioPlayerRef,
+    audioRecorderRef,
+    initAudioPlayer,
+    handleAudioRecord,
+  };
+};
 
 const ChatInterface = () => {
   const [endpoint, setEndpoint] = useState("ws://localhost:3000/realtime");
@@ -82,65 +84,77 @@ const ChatInterface = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [validEndpoint, setValidEndpoint] = useState(true);
-  const audioPlayerRef = useRef<Player | null>(null);
-  const audioRecorderRef = useRef<Recorder | null>(null);
   const webSocketClient = useRef<WebSocketClient | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageMap = useRef(new Map<string, Message>());
 
+  const { audioPlayerRef, audioRecorderRef, initAudioPlayer, handleAudioRecord } =
+    useAudioHandlers();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleWSMessage = async (message: WSMessage) => {
+    switch (message.type) {
+      case "transcription":
+        if (message.id) {
+          const newMessage: Message = {
+            id: message.id,
+            type: "user",
+            content: message.text!,
+          };
+          messageMap.current.set(message.id, newMessage);
+          setMessages(Array.from(messageMap.current.values()));
+        }
+        break;
+      case "text_delta":
+        if (message.id) {
+          const existingMessage = messageMap.current.get(message.id);
+          if (existingMessage) {
+            existingMessage.content += message.delta!;
+          } else {
+            const newMessage: Message = {
+              id: message.id,
+              type: "assistant",
+              content: message.delta!,
+            };
+            messageMap.current.set(message.id, newMessage);
+          }
+          setMessages(Array.from(messageMap.current.values()));
+        }
+        break;
+      case "control":
+        if (message.action === "connected" && message.greeting) {
+          const statusMessage: Message = {
+            id: `status-${Date.now()}`,
+            type: "status",
+            content: message.greeting,
+          };
+          messageMap.current.clear(); // Clear messages on new connection
+          messageMap.current.set(statusMessage.id, statusMessage);
+          setMessages(Array.from(messageMap.current.values()));
+        } else if (message.action === "speech_started") {
+          audioPlayerRef.current?.clear();
+        }
+        break;
+    }
+  };
 
   const receiveLoop = async () => {
-    if (audioPlayerRef.current === null) {
-      audioPlayerRef.current = new Player();
-      await audioPlayerRef.current.init(24000);
-    }
-    for await (const message of webSocketClient.current!) {
+    const player = await initAudioPlayer();
+    if (!webSocketClient.current) return;
+
+    for await (const message of webSocketClient.current) {
       if (message.type === "text") {
         const data = JSON.parse(message.data) as WSMessage;
-        switch (data.type) {
-          case "transcription":
-            setMessages([
-              ...messages,
-              {
-                id: data.id,
-                type: "user",
-                content: data.text,
-              },
-            ]);
-            break;
-          case "text_delta":
-            setMessages((current) => {
-              const idx = current.findIndex((m) => m.type === "assistant" && m.id === data.id);
-              if (idx === -1) {
-                return [...current, {
-                  id: data.id,
-                  type: "assistant",
-                  content: data.delta,
-                }];
-              } else {
-                current[idx].content += data.delta;
-              }
-              return current;
-            });
-            break;
-          case "control":
-            if (data.action === "connected") {
-              setMessages([
-                ...messages,
-                {
-                  type: "status",
-                  content: data.greeting,
-                }
-              ]);
-            } else if (data.action === "speech_started") {
-              audioPlayerRef.current?.clear();
-            }
-            break;
-
-          default:
-            break;
-        }
-      }
-      else if (message.type === "binary") {
-        audioPlayerRef.current.play(new Int16Array(message.data));
+        await handleWSMessage(data);
+      } else if (message.type === "binary" && player) {
+        player.play(new Int16Array(message.data));
       }
     }
   };
@@ -150,73 +164,63 @@ const ChatInterface = () => {
       await disconnect();
     } else {
       setIsConnecting(true);
-      webSocketClient.current = new WebSocketClient(new URL(endpoint));
-      setIsConnecting(false);
-      setIsConnected(true);
-      receiveLoop();
+      try {
+        webSocketClient.current = new WebSocketClient(new URL(endpoint));
+        setIsConnected(true);
+        receiveLoop();
+      } catch (error) {
+        console.error("Connection failed:", error);
+      } finally {
+        setIsConnecting(false);
+      }
     }
   };
 
   const disconnect = async () => {
-    console.log("Disconnecting...");
     setIsConnected(false);
     if (isRecording) {
-      toggleRecording();
+      await toggleRecording();
     }
     audioRecorderRef.current?.stop();
     await audioPlayerRef.current?.clear();
     await webSocketClient.current?.close();
     webSocketClient.current = null;
+    messageMap.current.clear();
+    setMessages([]);
   };
 
-
-
-
   const sendMessage = async () => {
-
     if (currentMessage.trim() && webSocketClient.current) {
+      const messageId = `user-${Date.now()}`;
       const message = {
         type: "user_message",
         text: currentMessage,
       };
-      setMessages([
-        ...messages,
-        {
-          id: Math.random().toString(36),
-          type: "user",
-          content: currentMessage,
-        },
-      ]);
+      const newMessage: Message = {
+        id: messageId,
+        type: "user",
+        content: currentMessage,
+      };
+      messageMap.current.set(messageId, newMessage);
+      setMessages(Array.from(messageMap.current.values()));
       setCurrentMessage("");
-      await webSocketClient.current.send({ type: "text", data: JSON.stringify(message)});
+      await webSocketClient.current.send({
+        type: "text",
+        data: JSON.stringify(message),
+      });
     }
   };
 
   const toggleRecording = async () => {
-    if (!isRecording && webSocketClient.current) {
-      try {
-        if (audioRecorderRef.current === null) {
-          audioRecorderRef.current = new Recorder(async (buffer) => {
-            await webSocketClient.current?.send({ type: "binary", data: buffer });
-          });
-        }
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: {
-          echoCancellation: true,
-          sampleRate: 24000,
-        } });
-        await audioRecorderRef.current.start(stream);
-        setIsRecording(true);
-      } catch (error) {
-        console.error("Failed to start recording:", error);
-      }
-    } else if (audioRecorderRef.current !== null) {
-      try {
-        await audioRecorderRef.current.stop();
-        audioRecorderRef.current = null;
-        setIsRecording(false);
-      } catch (error) {
-        console.error("Failed to stop recording:", error);
-      }
+    try {
+      const newRecordingState = await handleAudioRecord(
+        webSocketClient.current,
+        isRecording
+      );
+      setIsRecording(newRecordingState);
+    } catch (error) {
+      console.error("Recording error:", error);
+      setIsRecording(false);
     }
   };
 
@@ -226,35 +230,36 @@ const ChatInterface = () => {
     };
   }, []);
 
-  const validateEndpoint = (endpoint: string) => {
-    setEndpoint(endpoint);
-    setValidEndpoint(isValidURL(endpoint));
+  const validateEndpoint = (url: string) => {
+    setEndpoint(url);
+    try {
+      new URL(url);
+      setValidEndpoint(true);
+    } catch {
+      setValidEndpoint(false);
+    }
   };
 
   return (
     <div className="flex h-screen">
-      {/* Parameters Panel */}
       <div className="w-80 bg-gray-50 p-4 flex flex-col border-r">
         <div className="flex-1 overflow-y-auto">
           <Accordion type="single" collapsible className="space-y-4">
-            {/* Connection Settings */}
             <AccordionItem value="connection">
               <AccordionTrigger className="text-lg font-semibold">
                 Connection Settings
               </AccordionTrigger>
               <AccordionContent className="space-y-4">
-                  <Input
-                    placeholder="Endpoint"
-                    value={endpoint}
-                    onChange={(e) => validateEndpoint(e.target.value)}
-                    disabled={isConnected}
-                  />
+                <Input
+                  placeholder="Endpoint"
+                  value={endpoint}
+                  onChange={(e) => validateEndpoint(e.target.value)}
+                  disabled={isConnected}
+                />
               </AccordionContent>
             </AccordionItem>
           </Accordion>
         </div>
-
-        {/* Connect Button */}
         <Button
           className="mt-4"
           variant={isConnected ? "destructive" : "default"}
@@ -262,33 +267,31 @@ const ChatInterface = () => {
           disabled={isConnecting || !validEndpoint}
         >
           <Power className="w-4 h-4 mr-2" />
-          {isConnecting
-            ? "Connecting..."
-            : isConnected
-              ? "Disconnect"
-              : "Connect"}
+          {isConnecting ? "Connecting..." : isConnected ? "Disconnect" : "Connect"}
         </Button>
       </div>
 
-      {/* Chat Window */}
       <div className="flex-1 flex flex-col">
-        {/* Messages Area */}
         <div className="flex-1 p-4 overflow-y-auto">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`mb-4 p-3 rounded-lg ${
-                message.type === "user"
-                  ? "bg-blue-100 ml-auto max-w-[80%]"
-                  : "bg-gray-100 mr-auto max-w-[80%]"
-              }`}
-            >
-              {message.content}
-            </div>
-          ))}
+          <div className="space-y-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`p-3 rounded-lg ${
+                  message.type === "user"
+                    ? "bg-blue-100 ml-auto max-w-[80%]"
+                    : message.type === "status"
+                    ? "bg-gray-50 mx-auto max-w-[80%] text-center"
+                    : "bg-gray-100 mr-auto max-w-[80%]"
+                }`}
+              >
+                {message.content}
+              </div>
+            ))}
+          </div>
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
         <div className="p-4 border-t">
           <div className="flex gap-2">
             <Input

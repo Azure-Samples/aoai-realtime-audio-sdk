@@ -1,5 +1,5 @@
-// // Copyright (c) Microsoft Corporation.
-// // Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 import express from "express";
 import { WebSocketServer } from "ws";

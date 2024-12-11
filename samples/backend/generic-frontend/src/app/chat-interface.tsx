@@ -87,6 +87,8 @@ const ChatInterface = () => {
   const webSocketClient = useRef<WebSocketClient | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageMap = useRef(new Map<string, Message>());
+  const currentConnectingMessage = useRef<Message>();
+  const currentUserMessage = useRef<Message>();
 
   const { audioPlayerRef, audioRecorderRef, initAudioPlayer, handleAudioRecord } =
     useAudioHandlers();
@@ -103,12 +105,7 @@ const ChatInterface = () => {
     switch (message.type) {
       case "transcription":
         if (message.id) {
-          const newMessage: Message = {
-            id: message.id,
-            type: "user",
-            content: message.text!,
-          };
-          messageMap.current.set(message.id, newMessage);
+          currentUserMessage.current!.content = message.text!
           setMessages(Array.from(messageMap.current.values()));
         }
         break;
@@ -130,16 +127,18 @@ const ChatInterface = () => {
         break;
       case "control":
         if (message.action === "connected" && message.greeting) {
-          const statusMessage: Message = {
-            id: `status-${Date.now()}`,
-            type: "status",
-            content: message.greeting,
-          };
-          messageMap.current.clear(); // Clear messages on new connection
-          messageMap.current.set(statusMessage.id, statusMessage);
+          currentConnectingMessage.current!.content = message.greeting!;
           setMessages(Array.from(messageMap.current.values()));
         } else if (message.action === "speech_started") {
           audioPlayerRef.current?.clear();
+          let contrivedId = "userMessage" + Math.random();
+          currentUserMessage.current = {
+            id: contrivedId,
+            type: "user",
+            content: "...",
+          };
+          messageMap.current.set(contrivedId, currentUserMessage.current);
+          setMessages(Array.from(messageMap.current.values()));
         }
         break;
     }
@@ -163,7 +162,16 @@ const ChatInterface = () => {
     if (isConnected) {
       await disconnect();
     } else {
-      setIsConnecting(true);
+      let statusMessageId = `status-${Date.now()}`;
+      currentConnectingMessage.current = {
+        id: statusMessageId,
+        type: "status",
+        content: "Connecting...",
+      };
+      messageMap.current.clear(); // Clear messages on new connection
+      messageMap.current.set(statusMessageId, currentConnectingMessage.current);
+      setMessages(Array.from(messageMap.current.values()));
+  setIsConnecting(true);
       try {
         webSocketClient.current = new WebSocketClient(new URL(endpoint));
         setIsConnected(true);
@@ -308,10 +316,10 @@ const ChatInterface = () => {
               disabled={!isConnected}
             >
               {isRecording ? (
-                <MicOff className="w-4 h-4" />
-              ) : (
                 <Mic className="w-4 h-4" />
-              )}
+              ) : (
+                <MicOff className="w-4 h-4" />
+              ) }
             </Button>
             <Button onClick={sendMessage} disabled={!isConnected}>
               <Send className="w-4 h-4" />

@@ -1,13 +1,26 @@
 ## Setup
 
 - Get Java version 17 (recommended tooling: [sdkman](https://sdkman.io/usage/))
-- `./gradlew build` to compile the project
-- To run the server `./gradlew bootRun`
 
+## Run 
 
-## Using the WebSocketPinger.py script
+### Command line
 
-Run 
+To run the server `./gradlew bootRun`
+
+### Intellij
+
+Find the `bootRun` task in the gradle task panel:
+
+![alt text](gradle-task-panel.png)
+
+Once you have found the right gradle task `application->bootRun` modify the configuration like shown in the image:
+
+![alt text](run-config.png)
+
+## Apendix 1: Using the WebSocketPinger.py script for testing
+
+To setup a python venv run the following:
 
 ```commandline
 python3 -m venv venv

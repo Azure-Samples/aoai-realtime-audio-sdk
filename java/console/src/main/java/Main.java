@@ -26,6 +26,7 @@ import com.azure.ai.openai.realtime.models.ResponseAudioDeltaEvent;
 import com.azure.ai.openai.realtime.models.ResponseAudioDoneEvent;
 import com.azure.ai.openai.realtime.models.ResponseAudioTranscriptDeltaEvent;
 import com.azure.ai.openai.realtime.models.ResponseAudioTranscriptDoneEvent;
+import com.azure.ai.openai.realtime.models.ResponseDoneEvent;
 import com.azure.ai.openai.realtime.models.ServerErrorReceivedException;
 import com.azure.ai.openai.realtime.models.SessionCreatedEvent;
 import com.azure.ai.openai.realtime.models.SessionUpdateEvent;
@@ -59,7 +60,7 @@ public class Main {
                 client.getServerEvents()
                         .takeUntil(serverEvent -> serverEvent instanceof SessionCreatedEvent)
                         .ofType(SessionCreatedEvent.class)
-                        .subscribe(Main::consumeSessionCreated, Main::consumeError, Main::onSessionCreatedCompleted),
+                        .subscribe(Main::consumeSessionCreated, Main::consumeError),
                 client.getServerEvents()
                         .takeUntil(serverEvent -> serverEvent instanceof ResponseAudioDoneEvent)
                         .ofType(ResponseAudioDeltaEvent.class)
@@ -68,7 +69,11 @@ public class Main {
                         .takeUntil(serverEvent -> serverEvent instanceof ResponseAudioTranscriptDoneEvent)
                         .ofType(ResponseAudioTranscriptDeltaEvent.class)
                         .subscribe(Main::consumeAudioTranscriptDelta, Main::consumeError,
-                                Main::onAudioResponseTranscriptCompleted)));
+                                Main::onAudioResponseTranscriptCompleted),
+                client.getServerEvents()
+                    .takeUntil(serverEvent -> serverEvent instanceof ResponseDoneEvent)
+                    .ofType(ResponseDoneEvent.class)
+                    .subscribe(Main::consumeResponseDone, Main::consumeError)));
 
         // Initializing connection to server
         client.start().block();
@@ -92,8 +97,8 @@ public class Main {
         sendAudioFileAsync(client, audioFile).block();
 
         try {
-            // We await for subscriptions that we didn't block on
-            Thread.sleep(10000);
+            // We wait for the "response done" event, as this example only demonstrates one response
+            client.getServerEvents().ofType(ResponseDoneEvent.class).take(1).blockLast();
             client.stop().block();
             client.close();
             disposables.dispose();
@@ -155,11 +160,12 @@ public class Main {
         }
     }
 
+    /**
+     * Consumes the event sent by the server upon session establishment.
+     * @param sessionCreated The information about the newly-started session.
+     */
     private static void consumeSessionCreated(SessionCreatedEvent sessionCreated) {
         System.out.println("Connected: new session created with ID " + sessionCreated.getEventId());
-    }
-
-    private static void onSessionCreatedCompleted() {
     }
 
     /**
@@ -202,6 +208,14 @@ public class Main {
      */
     private static void onAudioResponseTranscriptCompleted() {
         System.out.println("\nAudio transcript complete.");
+    }
+
+    /**
+     * Consumes the response done event sent by the server when a single response generation is complete.
+     * @param responseDoneEvent
+     */
+    private static void consumeResponseDone(ResponseDoneEvent responseDoneEvent) {
+        System.out.println("\nResponse done.");
     }
 
     /**

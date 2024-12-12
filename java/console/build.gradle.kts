@@ -6,7 +6,7 @@
  */
 
 plugins {
-    `java`
+    java
     application
 }
 

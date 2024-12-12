@@ -77,7 +77,7 @@ const useAudioHandlers = () => {
 };
 
 const ChatInterface = () => {
-  const [endpoint, setEndpoint] = useState("ws://localhost:3000/realtime");
+  const [endpoint, setEndpoint] = useState("ws://localhost:8080/realtime");
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -252,10 +252,10 @@ const ChatInterface = () => {
     <div className="flex h-screen">
       <div className="w-80 bg-gray-50 p-4 flex flex-col border-r">
         <div className="flex-1 overflow-y-auto">
-          <Accordion type="single" collapsible className="space-y-4">
+          <Accordion type="single" className="space-y-4" value="connection">
             <AccordionItem value="connection">
               <AccordionTrigger className="text-lg font-semibold">
-                Connection Settings
+                Middle Tier Endpoint
               </AccordionTrigger>
               <AccordionContent className="space-y-4">
                 <Input

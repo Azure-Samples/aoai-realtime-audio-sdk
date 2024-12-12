@@ -44,19 +44,9 @@ yarn dev
 
 ## Usage
 
-### Connection Settings
+### Middle Tier Endpoint
 
-- Toggle between OpenAI and Azure OpenAI
-- Enter your API credentials
-- For Azure OpenAI, provide the endpoint URL and deployment name
-
-### Conversation Settings
-
-- **Server VAD**: Enable/disable server-side Voice Activity Detection
-- **Instructions**: Set custom instructions for the conversation
-- **Temperature**: Adjust response randomness (0.6-1.2)
-- **Modality**: Choose between text-only or audio+text interactions
-- **Tools**: Configure function calling capabilities (coming soon)
+-  Update with your middle tier service endpoint, if needed
 
 ## Project Structure
 

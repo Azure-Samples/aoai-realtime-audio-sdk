@@ -4,34 +4,42 @@ from fastapi.websockets import WebSocketState
 import uvicorn
 import uuid
 import json
-from typing import Dict, Union, Literal, TypedDict
+from typing import Union, Literal, TypedDict
 import asyncio
 from loguru import logger
 import os
 from dotenv import load_dotenv
-from dataclasses import dataclass
 from azure.identity import DefaultAzureCredential
 from azure.core.credentials import AzureKeyCredential
-from rtclient import InputAudioTranscription, RTClient, ServerVAD, RTInputAudioItem, RTResponse, RTAudioContent
+from rtclient import (
+    InputAudioTranscription,
+    RTClient,
+    ServerVAD,
+    RTInputAudioItem,
+    RTResponse,
+    RTAudioContent,
+)
 
-# Load environment variables
 load_dotenv()
 
-# Type definitions
+
 class TextDelta(TypedDict):
     id: str
     type: Literal["text_delta"]
     delta: str
+
 
 class Transcription(TypedDict):
     id: str
     type: Literal["transcription"]
     text: str
 
+
 class UserMessage(TypedDict):
     id: str
     type: Literal["user_message"]
     text: str
+
 
 class ControlMessage(TypedDict):
     type: Literal["control"]
@@ -39,7 +47,9 @@ class ControlMessage(TypedDict):
     greeting: str | None = None
     id: str | None = None
 
+
 WSMessage = Union[TextDelta, Transcription, UserMessage, ControlMessage]
+
 
 class RTSession:
     def __init__(self, websocket: WebSocket, backend: str | None):
@@ -64,11 +74,11 @@ class RTSession:
             return RTClient(
                 url=os.getenv("AZURE_OPENAI_ENDPOINT"),
                 token_credential=DefaultAzureCredential(),
-                deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT")
+                deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
             )
         return RTClient(
             key_credential=AzureKeyCredential(os.getenv("OPENAI_API_KEY")),
-            model=os.getenv("OPENAI_MODEL")
+            model=os.getenv("OPENAI_MODEL"),
         )
 
     async def send(self, message: WSMessage):
@@ -81,15 +91,16 @@ class RTSession:
         self.logger.debug("Configuring realtime session")
         await self.client.configure(
             modalities={"text", "audio"},
+            voice="coral",
             input_audio_format="pcm16",
             input_audio_transcription=InputAudioTranscription(model="whisper-1"),
-            turn_detection=ServerVAD()
+            turn_detection=ServerVAD(),
         )
 
         greeting: ControlMessage = {
             "type": "control",
             "action": "connected",
-            "greeting": "You are now connected to the FastAPI server"
+            "greeting": "You are now connected to the FastAPI server",
         }
         await self.send(greeting)
         self.logger.debug("Realtime session configured successfully")
@@ -108,11 +119,13 @@ class RTSession:
             self.logger.debug(f"Received text message type: {parsed['type']}")
 
             if parsed["type"] == "user_message":
-                await self.client.send_item({
-                    "type": "message",
-                    "role": "user",
-                    "content": [{"type": "input_text", "text": parsed["text"]}]
-                })
+                await self.client.send_item(
+                    {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": parsed["text"]}],
+                    }
+                )
                 await self.client.generate_response()
                 self.logger.debug("User message processed successfully")
         except Exception as error:
@@ -126,15 +139,13 @@ class RTSession:
                 delta_message: TextDelta = {
                     "id": content_id,
                     "type": "text_delta",
-                    "delta": text
+                    "delta": text,
                 }
                 await self.send(delta_message)
 
-            await self.send({
-                "type": "control",
-                "action": "text_done",
-                "id": content_id
-            })
+            await self.send(
+                {"type": "control", "action": "text_done", "id": content_id}
+            )
             self.logger.debug("Text content processed successfully")
         except Exception as error:
             self.logger.error(f"Error handling text content: {error}")
@@ -148,16 +159,12 @@ class RTSession:
         async def handle_audio_transcript():
             content_id = f"{content.item_id}-{content.content_index}"
             async for chunk in content.transcript_chunks():
-                await self.send({
-                    "id": content_id,
-                    "type": "text_delta",
-                    "delta": chunk
-                })
-            await self.send({
-                "type": "control",
-                "action": "text_done",
-                "id": content_id
-            })
+                await self.send(
+                    {"id": content_id, "type": "text_delta", "delta": chunk}
+                )
+            await self.send(
+                {"type": "control", "action": "text_done", "id": content_id}
+            )
 
         try:
             await asyncio.gather(handle_audio_chunks(), handle_audio_transcript())
@@ -188,10 +195,12 @@ class RTSession:
             transcription: Transcription = {
                 "id": event.id,
                 "type": "transcription",
-                "text": event.transcript or ""
+                "text": event.transcript or "",
             }
             await self.send(transcription)
-            self.logger.debug(f"Input audio processed successfully, transcription length: {len(transcription['text'])}")
+            self.logger.debug(
+                f"Input audio processed successfully, transcription length: {len(transcription['text'])}"
+            )
         except Exception as error:
             self.logger.error(f"Error handling input audio: {error}")
             raise
@@ -208,6 +217,7 @@ class RTSession:
             self.logger.error(f"Error in event loop: {error}")
             raise
 
+
 app = FastAPI()
 
 # Add CORS middleware
@@ -218,6 +228,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.websocket("/realtime")
 async def websocket_endpoint(websocket: WebSocket):
@@ -237,9 +248,10 @@ async def websocket_endpoint(websocket: WebSocket):
         except Exception as e:
             logger.error(f"WebSocket error: {e}")
         finally:
-            if websocket.client_state != WebSocketState.DISCONNECTED:
+            if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.close()
             logger.info("WebSocket connection closed")
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8080"))

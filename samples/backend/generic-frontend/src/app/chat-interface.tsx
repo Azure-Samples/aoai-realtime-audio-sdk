@@ -131,7 +131,7 @@ const ChatInterface = () => {
           setMessages(Array.from(messageMap.current.values()));
         } else if (message.action === "speech_started") {
           audioPlayerRef.current?.clear();
-          let contrivedId = "userMessage" + Math.random();
+          const contrivedId = "userMessage" + Math.random();
           currentUserMessage.current = {
             id: contrivedId,
             type: "user",
@@ -162,7 +162,7 @@ const ChatInterface = () => {
     if (isConnected) {
       await disconnect();
     } else {
-      let statusMessageId = `status-${Date.now()}`;
+      const statusMessageId = `status-${Date.now()}`;
       currentConnectingMessage.current = {
         id: statusMessageId,
         type: "status",

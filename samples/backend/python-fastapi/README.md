@@ -53,7 +53,7 @@ Authentication is handled via `DefaultAzureCredential`, supporting environment-b
 3. **Start the Server**
 
     ```bash
-    poetry run uvicorn rt_server.main:app --reload --port 8080
+    poetry run uvicorn rt-middle-tier.main:app --reload --port 8080
     ```
 
 The server listens on `http://localhost:<PORT>` and accepts WebSocket connections at the `/realtime` path.
@@ -63,17 +63,13 @@ The server listens on `http://localhost:<PORT>` and accepts WebSocket connection
 This project uses several development tools that are automatically installed with Poetry:
 
 - **Black**: Code formatting
-- **isort**: Import sorting
-- **flake8**: Code linting
-- **mypy**: Static type checking
+- **ruff**: Code linting
 
 You can run these tools using Poetry:
 
 ```bash
-poetry run black rt_server
-poetry run isort rt_server
-poetry run flake8 rt_server
-poetry run mypy rt_server
+poetry run black rt-middle-tier
+poetry run ruff check rt-middle-tier
 ```
 
 ## Custom Protocol

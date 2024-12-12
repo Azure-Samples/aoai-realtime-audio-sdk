@@ -78,6 +78,8 @@ export class RTSession {
         type: "server_vad",
       },
     });
+
+    this.logger.debug("Realtime session configured successfully");
     /* Send greeting */
     const greeting: Connected = {
       type: "control",

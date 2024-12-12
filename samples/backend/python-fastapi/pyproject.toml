@@ -21,7 +21,6 @@ rtclient = { url = "https://github.com/Azure-Samples/aoai-realtime-audio-sdk/rel
 [tool.poetry.group.dev.dependencies]
 black = "^24.10.0"
 ruff = "^0.8.2"
-mypy = "^1.13.0"
 
 [build-system]
 requires = ["poetry-core"]

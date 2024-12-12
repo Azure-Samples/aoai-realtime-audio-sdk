@@ -10,4 +10,8 @@ public class SpringBackendApplication {
 		SpringApplication.run(SpringBackendApplication.class, args);
 	}
 
+	public void something() {
+
+
+	}
 }

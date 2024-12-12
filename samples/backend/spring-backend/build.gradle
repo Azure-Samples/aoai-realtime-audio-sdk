@@ -9,16 +9,22 @@ version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
+		languageVersion = JavaLanguageVersion.of(17)
 	}
 }
 
 repositories {
 	mavenCentral()
+	maven {
+		url = uri("https://pkgs.dev.azure.com/azure-sdk/public/_packaging/azure-sdk-for-java/maven/v1")
+		name = "azure-sdk-for-java"
+	}
 }
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+	implementation 'com.azure:azure-ai-openai-realtime:1.0.0-alpha.20241205.3'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

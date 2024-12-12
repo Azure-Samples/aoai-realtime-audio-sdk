@@ -22,7 +22,7 @@
   "dependencies": {
     "@azure/identity": "^4.5.0",
     "dotenv": "^16.4.7",
-    "express": "^4.21.1",
+    "express": "^4.21.2",
     "pino": "^9.5.0",
     "pino-pretty": "^13.0.0",
     "rt-client": "https://github.com/Azure-Samples/aoai-realtime-audio-sdk/releases/download/js/v0.5.1/rt-client-0.5.1.tgz",

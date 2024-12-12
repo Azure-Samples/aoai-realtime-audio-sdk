@@ -1,0 +1,31 @@
+{
+  "name": "rt-backend-node",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write src",
+    "build": "tsc",
+    "start": "tsx src/app.ts"
+  },
+  "author": "Gerardo Lecaros",
+  "license": "MIT",
+  "description": "",
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/ws": "^8.5.13",
+    "prettier": "^3.4.2",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.5.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.1",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
+    "rt-client": "https://github.com/Azure-Samples/aoai-realtime-audio-sdk/releases/download/js/v0.5.1/rt-client-0.5.1.tgz",
+    "ws": "^8.18.0"
+  }
+}

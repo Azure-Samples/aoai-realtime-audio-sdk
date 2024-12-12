@@ -14,7 +14,7 @@ When building applications that leverage Azure OpenAI or OpenAI's Realtime APIs,
 ## Repository Structure
 
 ```
-samples/
+samples/middle-tier/
 ├── node-express/       # Node.js backend implementation
 ├── python-fastapi/     # Python backend implementation
 └── generic-frontend/   # React-based frontend application

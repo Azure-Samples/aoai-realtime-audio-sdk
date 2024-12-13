@@ -1,6 +1,6 @@
 package com.azure.sample.openai.realtime.spring_backend.messages;
 
-public class ControlMessage extends ClientMessage{
+public class ControlMessage {
 
     private final MessageType type = MessageType.CONTROL;
     private final String action;

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum MessageType {
     CONTROL("control"),
-    TEXT_DELTA("text-delta"),
+    TEXT_DELTA("text_delta"),
     TRANSCRIPTION("transcription"),
     USER_MESSAGE("user_message");
 

@@ -1,56 +1,31 @@
-package com.azure.sample.openai.realtime.spring_backend;
+package com.azure.sample.openai.realtime.spring_backend.handlers;
 
 import com.azure.ai.openai.realtime.RealtimeAsyncClient;
 import com.azure.ai.openai.realtime.RealtimeClientBuilder;
 import com.azure.core.credential.KeyCredential;
-import com.azure.core.util.Configuration;
+import com.azure.sample.openai.realtime.spring_backend.configurations.OpenAIConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-public class RealtimeWebSocketEndpoint extends TextWebSocketHandler {
+public class RealtimeAudioHandler extends TextWebSocketHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(RealtimeWebSocketEndpoint.class);
-    private RealtimeAsyncClient realtimeAsyncClient;
+    private static final Logger logger = LoggerFactory.getLogger(RealtimeAudioHandler.class);
+    private final RealtimeAsyncClient realtimeAsyncClient;
 
-    // TODO jpalvarezl: Figure out how to correctly wire these
-//    @Value("${openai.realtime.apiKey}")
-//    private String openaiKey;
-//
-//    @Value("${azureopenai.realtime.endpoint}")
-//    private String azureOpenAIEndpoint;
-//
-//    @Value("${azureopenai.realtime.apiKey}")
-//    private String azureOpenAIKey;
-//
-//    @Value("${azureopenai.realtime.deployment}")
-//    private String azureOpenAIDeployment;
-//
-//    @Value("${openai.realtime.model}")
-//    private String openAIModel;
-//
-//    @Autowired
-//    private Environment env;
+    public RealtimeAudioHandler(RealtimeAsyncClient realtimeAsyncClient) {
+        this.realtimeAsyncClient = realtimeAsyncClient;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-//        String openaiKey = env.getProperty("openai.realtime.apiKey");
-//        String openAIModel = env.getProperty("openai.realtime.model");
-        String openAIKey = Configuration.getGlobalConfiguration().get("OPENAI_KEY");
-        String openAIModel = Configuration.getGlobalConfiguration().get("OPENAI_MODEL");
-
         logger.atInfo().log("Connection established: " + session.getId());
-        this.realtimeAsyncClient = new RealtimeClientBuilder()
-                .credential(new KeyCredential(openAIKey))
-                .deploymentOrModelName(openAIModel)
-                .buildAsyncClient();
         this.realtimeAsyncClient.start().block();
     }
 

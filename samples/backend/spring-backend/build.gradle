@@ -23,6 +23,7 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 	implementation 'com.azure:azure-ai-openai-realtime:1.0.0-alpha.20241205.3'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'

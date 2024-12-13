@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
         name = "isazureservice",
         havingValue = "true"
 )
-public class AzureOpenAIConfiguration {
+class AzureOpenAIConfiguration {
 
     @Value("${azureopenai.realtime.endpoint}")
     private String azureOpenAIEndpoint;

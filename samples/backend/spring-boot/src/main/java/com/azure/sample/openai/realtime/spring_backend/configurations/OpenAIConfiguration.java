@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
         name = "isazureservice",
         havingValue = "false"
 )
-public class OpenAIConfiguration {
+class OpenAIConfiguration {
     @Value("${openai.realtime.apiKey}")
     private String openaiKey;
 

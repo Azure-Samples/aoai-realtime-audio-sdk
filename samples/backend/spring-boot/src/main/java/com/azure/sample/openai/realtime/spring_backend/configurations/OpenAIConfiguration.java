@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "openai.realtime")
 @ConditionalOnProperty(
-        name = "isazureservice",
-        havingValue = "false"
+        name = "server.backend",
+        havingValue = "openai"
 )
 class OpenAIConfiguration {
     @Value("${openai.realtime.apiKey}")

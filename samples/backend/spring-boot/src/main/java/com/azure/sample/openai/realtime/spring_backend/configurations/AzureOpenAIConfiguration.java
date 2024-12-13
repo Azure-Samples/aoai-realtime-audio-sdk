@@ -1,11 +1,16 @@
 package com.azure.sample.openai.realtime.spring_backend.configurations;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @ConfigurationProperties(prefix = "azureopenai.realtime")
+@ConditionalOnProperty(
+        name = "isazureservice",
+        havingValue = "true"
+)
 public class AzureOpenAIConfiguration {
 
     @Value("${azureopenai.realtime.endpoint}")

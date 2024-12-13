@@ -2,7 +2,7 @@ import asyncio
 import websockets
 
 async def test_websocket():
-    uri = "ws://localhost:8080/realtime"
+    uri = "ws://localhost:8085/realtime"
     async with websockets.connect(uri) as websocket:
         print("WebSocket connection established")
         await websocket.send("Hello, server!")

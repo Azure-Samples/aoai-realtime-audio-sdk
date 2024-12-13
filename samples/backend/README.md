@@ -17,6 +17,7 @@ When building applications that leverage Azure OpenAI or OpenAI's Realtime APIs,
 samples/
 ├── node-express/       # Node.js backend implementation
 ├── python-fastapi/     # Python backend implementation
+├── spring-boot/        # Spring boot Java backend implementation
 └── generic-frontend/   # React-based frontend application
 ```
 

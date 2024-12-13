@@ -4,12 +4,19 @@ import com.azure.ai.openai.realtime.RealtimeAsyncClient;
 import com.azure.ai.openai.realtime.models.RealtimeAudioFormat;
 import com.azure.ai.openai.realtime.models.RealtimeAudioInputTranscriptionModel;
 import com.azure.ai.openai.realtime.models.RealtimeAudioInputTranscriptionSettings;
+import com.azure.ai.openai.realtime.models.RealtimeClientEventResponseCreateResponse;
 import com.azure.ai.openai.realtime.models.RealtimeRequestSession;
 import com.azure.ai.openai.realtime.models.RealtimeRequestSessionModality;
 import com.azure.ai.openai.realtime.models.RealtimeServerVadTurnDetection;
 import com.azure.ai.openai.realtime.models.RealtimeVoice;
+import com.azure.ai.openai.realtime.models.ResponseAudioTranscriptDeltaEvent;
+import com.azure.ai.openai.realtime.models.ResponseAudioTranscriptDoneEvent;
+import com.azure.ai.openai.realtime.models.ResponseCreateEvent;
 import com.azure.ai.openai.realtime.models.SessionUpdateEvent;
+import com.azure.ai.openai.realtime.utils.ConversationItem;
 import com.azure.sample.openai.realtime.spring_backend.messages.ControlMessage;
+import com.azure.sample.openai.realtime.spring_backend.messages.TextDeltaMessage;
+import com.azure.sample.openai.realtime.spring_backend.messages.UserMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -24,6 +31,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 @Controller
@@ -32,6 +40,7 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
     private static final Logger logger = LoggerFactory.getLogger(RealtimeAudioHandler.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Disposable.Composite disposables = Disposables.composite();
+    private WebSocketSession currentSession = null;
 
     private final RealtimeAsyncClient realtimeAsyncClient;
 
@@ -58,13 +67,14 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         logger.atInfo().log("Connection established: " + session.getId());
+        this.currentSession = session;
         realtimeAsyncClient.sendMessage(new SessionUpdateEvent(new RealtimeRequestSession()
-            .setInputAudioFormat(RealtimeAudioFormat.PCM16)
-            .setModalities(Arrays.asList(RealtimeRequestSessionModality.AUDIO, RealtimeRequestSessionModality.TEXT))
-            .setInputAudioTranscription(new RealtimeAudioInputTranscriptionSettings()
-                .setModel(RealtimeAudioInputTranscriptionModel.WHISPER_1))
-            .setTurnDetection(new RealtimeServerVadTurnDetection())
-            .setVoice(RealtimeVoice.ALLOY)
+                .setInputAudioFormat(RealtimeAudioFormat.PCM16)
+                .setModalities(Arrays.asList(RealtimeRequestSessionModality.AUDIO, RealtimeRequestSessionModality.TEXT))
+                .setInputAudioTranscription(new RealtimeAudioInputTranscriptionSettings()
+                        .setModel(RealtimeAudioInputTranscriptionModel.WHISPER_1))
+                .setTurnDetection(new RealtimeServerVadTurnDetection())
+                .setVoice(RealtimeVoice.ALLOY)
         )).block();
 
         ControlMessage controlMessage = new ControlMessage("connected")
@@ -76,8 +86,13 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-//        super.handleTextMessage(session, message);
-        System.out.println("Received message: " + message.getPayload());
+        System.out.println("Message received");
+        UserMessage userMessage = objectMapper.readValue(message.getPayload(), UserMessage.class);
+        // TODO to block or not to block?
+        disposables.add(realtimeAsyncClient.sendMessage(ConversationItem.createUserMessage(userMessage.getText()))
+                .then(realtimeAsyncClient.sendMessage(new ResponseCreateEvent(
+                        new RealtimeClientEventResponseCreateResponse())))
+                .subscribe());
     }
 
     @Override
@@ -98,14 +113,47 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
     }
 
     private void startEventLoop() {
-        disposables.add(
-            realtimeAsyncClient.getServerEvents().onErrorResume((throwable ) -> {
-                // Log the error and continue listening for events.
-                logger.atError().setCause(throwable).log("Error sent from the Realtime server");
-                return realtimeAsyncClient.getServerEvents();
-            }).subscribe(event -> {
-                // TODO
-            })
-        );
+        disposables.addAll(Arrays.asList(
+                // Text messages from the Realtime server handler
+                realtimeAsyncClient.getServerEvents().ofType(ResponseAudioTranscriptDeltaEvent.class)
+                        .subscribe(this::handleTranscriptionDelta),
+                realtimeAsyncClient.getServerEvents().ofType(ResponseAudioTranscriptDoneEvent.class)
+                        .subscribe(this::handleTranscriptionDone)
+//                realtimeAsyncClient.getServerEvents().ofType(ResponseAudioTranscriptDeltaEvent.class)
+//                        .subscribe(audioDelta -> {
+//
+//                        }),
+
+//                realtimeAsyncClient.getServerEvents().onErrorResume((throwable) -> {
+//                    // Log the error and continue listening for events.
+//                    logger.atError().setCause(throwable).log("Error sent from the Realtime server");
+//                    return realtimeAsyncClient.getServerEvents();
+//                }).subscribe(event -> {
+//
+//                })
+        ));
+    }
+
+    private void handleTranscriptionDone(ResponseAudioTranscriptDoneEvent transcriptDoneEvent) {
+        String contentId = transcriptDoneEvent.getItemId() + "-" + transcriptDoneEvent.getContentIndex();
+        logger.atInfo().log("Transcription done event received for contentId: " + contentId);
+        try {
+            String payload = objectMapper.writeValueAsString(new ControlMessage("done")
+                    .setId(contentId));
+            this.currentSession.sendMessage(new TextMessage(payload));
+        } catch (Exception e) {
+            logger.atError().setCause(e).log("Error sending done message");
+        }
+    }
+
+    private void handleTranscriptionDelta(ResponseAudioTranscriptDeltaEvent textDelta) {
+        String contentId = textDelta.getItemId() + "-" + textDelta.getContentIndex();
+        logger.atInfo().log("New text delta inbound. Assigned contentId: " + contentId);
+        TextDeltaMessage textDeltaMessage = new TextDeltaMessage(contentId, textDelta.getDelta());
+        try {
+            this.currentSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(textDeltaMessage)));
+        } catch (Exception e) {
+            logger.atError().setCause(e).log("Error sending text delta message");
+        }
     }
 }

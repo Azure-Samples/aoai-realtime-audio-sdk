@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "azureopenai.realtime")
 @ConditionalOnProperty(
-        name = "isazureservice",
-        havingValue = "true"
+        name = "server.backend",
+        havingValue = "azure"
 )
 class AzureOpenAIConfiguration {
 

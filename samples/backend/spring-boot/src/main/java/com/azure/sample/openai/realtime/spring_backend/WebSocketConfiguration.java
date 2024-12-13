@@ -15,10 +15,10 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @EnableWebSocket
 public class WebSocketConfiguration implements WebSocketConfigurer {
 
-    @Autowired
+    @Autowired(required = false)
     private AzureOpenAIConfiguration azureOpenAIConfiguration;
 
-    @Autowired
+    @Autowired(required = false)
     private OpenAIConfiguration openAIConfiguration;
 
     @Override

@@ -57,22 +57,6 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
     public void init() {
         logger.atInfo().log("Starting RealtimeAsyncClient");
         this.realtimeAsyncClient.start().block();
-        logger.atInfo().log("RealtimeAsyncClient started");
-    }
-
-    @PreDestroy
-    public void destroy() {
-        logger.atInfo().log("Closing RealtimeAsyncClient");
-        this.realtimeAsyncClient.stop().block();
-        this.realtimeAsyncClient.close();
-        disposables.dispose();
-        logger.atInfo().log("RealtimeAsyncClient closed");
-    }
-
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        logger.atInfo().log("Connection established: " + session.getId());
-        this.currentSession = session;
         realtimeAsyncClient.sendMessage(new SessionUpdateEvent(new RealtimeRequestSession()
                 .setInputAudioFormat(RealtimeAudioFormat.PCM16)
                 .setModalities(Arrays.asList(RealtimeRequestSessionModality.AUDIO, RealtimeRequestSessionModality.TEXT))
@@ -81,12 +65,35 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
                 .setTurnDetection(new RealtimeServerVadTurnDetection())
                 .setVoice(RealtimeVoice.ALLOY)
         )).block();
+        logger.atInfo().log("RealtimeAsyncClient started");
+    }
+
+    @PreDestroy
+    public void destroy() {
+        logger.atInfo().log("Closing RealtimeAsyncClient");
+        this.realtimeAsyncClient.stop().block();
+        disposables.dispose();
+        logger.atInfo().log("RealtimeAsyncClient closed");
+    }
+
+    @Override
+    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        logger.atInfo().log("Connection established: " + session.getId());
+        this.currentSession = session;
 
         ControlMessage controlMessage = new ControlMessage("connected")
                 .setGreeting("You are now connected to the Spring Boot server");
         session.sendMessage(new TextMessage(objectMapper.writeValueAsString(controlMessage)));
 
         startEventLoop();
+    }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
+        super.afterConnectionClosed(session, status);
+        logger.atInfo().log("Connection closed: " + session.getId());
+        logger.atInfo().log("Close status: " + status);
+        disposables.dispose();
     }
 
     @Override
@@ -111,13 +118,6 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         logger.atError().setCause(exception).log("Transport error");
         super.handleTransportError(session, exception);
-    }
-
-    @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-        super.afterConnectionClosed(session, status);
-        logger.atInfo().log("Connection closed: " + session.getId());
-        logger.atInfo().log("Close status: " + status);
     }
 
     private void startEventLoop() {

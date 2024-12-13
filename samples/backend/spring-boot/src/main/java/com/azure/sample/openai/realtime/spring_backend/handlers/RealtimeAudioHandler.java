@@ -1,14 +1,18 @@
 package com.azure.sample.openai.realtime.spring_backend.handlers;
 
 import com.azure.ai.openai.realtime.RealtimeAsyncClient;
+import com.azure.ai.openai.realtime.models.InputAudioBufferAppendEvent;
 import com.azure.ai.openai.realtime.models.RealtimeAudioFormat;
 import com.azure.ai.openai.realtime.models.RealtimeAudioInputTranscriptionModel;
 import com.azure.ai.openai.realtime.models.RealtimeAudioInputTranscriptionSettings;
 import com.azure.ai.openai.realtime.models.RealtimeClientEventResponseCreateResponse;
 import com.azure.ai.openai.realtime.models.RealtimeRequestSession;
 import com.azure.ai.openai.realtime.models.RealtimeRequestSessionModality;
+import com.azure.ai.openai.realtime.models.RealtimeServerEvent;
 import com.azure.ai.openai.realtime.models.RealtimeServerVadTurnDetection;
 import com.azure.ai.openai.realtime.models.RealtimeVoice;
+import com.azure.ai.openai.realtime.models.ResponseAudioDeltaEvent;
+import com.azure.ai.openai.realtime.models.ResponseAudioDoneEvent;
 import com.azure.ai.openai.realtime.models.ResponseAudioTranscriptDeltaEvent;
 import com.azure.ai.openai.realtime.models.ResponseAudioTranscriptDoneEvent;
 import com.azure.ai.openai.realtime.models.ResponseCreateEvent;
@@ -30,6 +34,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
+import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -88,7 +93,6 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         System.out.println("Message received");
         UserMessage userMessage = objectMapper.readValue(message.getPayload(), UserMessage.class);
-        // TODO to block or not to block?
         disposables.add(realtimeAsyncClient.sendMessage(ConversationItem.createUserMessage(userMessage.getText()))
                 .then(realtimeAsyncClient.sendMessage(new ResponseCreateEvent(
                         new RealtimeClientEventResponseCreateResponse())))
@@ -97,11 +101,15 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
 
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
-//        super.handleBinaryMessage(session, message);
+        logger.atInfo().log("Binary message received");
+        disposables.add(realtimeAsyncClient.sendMessage(
+                new InputAudioBufferAppendEvent(message.getPayload().array()))
+            .subscribe());
     }
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
+        logger.atError().setCause(exception).log("Transport error");
         super.handleTransportError(session, exception);
     }
 
@@ -114,24 +122,29 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
 
     private void startEventLoop() {
         disposables.addAll(Arrays.asList(
-                // Text messages from the Realtime server handler
-                realtimeAsyncClient.getServerEvents().ofType(ResponseAudioTranscriptDeltaEvent.class)
+                getLooperFlux().ofType(ResponseAudioTranscriptDeltaEvent.class)
                         .subscribe(this::handleTranscriptionDelta),
-                realtimeAsyncClient.getServerEvents().ofType(ResponseAudioTranscriptDoneEvent.class)
-                        .subscribe(this::handleTranscriptionDone)
-//                realtimeAsyncClient.getServerEvents().ofType(ResponseAudioTranscriptDeltaEvent.class)
-//                        .subscribe(audioDelta -> {
-//
-//                        }),
-
-//                realtimeAsyncClient.getServerEvents().onErrorResume((throwable) -> {
-//                    // Log the error and continue listening for events.
-//                    logger.atError().setCause(throwable).log("Error sent from the Realtime server");
-//                    return realtimeAsyncClient.getServerEvents();
-//                }).subscribe(event -> {
-//
-//                })
+                getLooperFlux().ofType(ResponseAudioTranscriptDoneEvent.class)
+                        .subscribe(this::handleTranscriptionDone),
+                getLooperFlux().ofType(ResponseAudioDeltaEvent.class)
+                        .subscribe(this::handleAudioDelta),
+                getLooperFlux().ofType(ResponseAudioDoneEvent.class)
+                        .subscribe(this::handleAudioDone)
         ));
+    }
+
+    private void handleAudioDone(ResponseAudioDoneEvent audioDoneEvent) {
+        logger.atInfo().log("Audio done event received");
+        // no-op
+    }
+
+    private void handleAudioDelta(ResponseAudioDeltaEvent audioDeltaEvent) {
+        logger.atInfo().log("New audio delta inbound");
+        try {
+            currentSession.sendMessage(new BinaryMessage(audioDeltaEvent.getDelta()));
+        } catch (IOException e) {
+            logger.atError().setCause(e).log("Error sending audio delta message");
+        }
     }
 
     private void handleTranscriptionDone(ResponseAudioTranscriptDoneEvent transcriptDoneEvent) {
@@ -155,5 +168,13 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
         } catch (Exception e) {
             logger.atError().setCause(e).log("Error sending text delta message");
         }
+    }
+
+    private Flux<RealtimeServerEvent> getLooperFlux() {
+        return realtimeAsyncClient.getServerEvents().onErrorResume((throwable) -> {
+            // Log the error and continue listening for events.
+            logger.atError().setCause(throwable).log("Error sent from the Realtime server");
+            return realtimeAsyncClient.getServerEvents();
+        });
     }
 }

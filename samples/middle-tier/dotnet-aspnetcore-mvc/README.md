@@ -7,7 +7,7 @@ This sample demonstrates a rudimentary middle tier service implementation that m
 1. A connection with a client frontend, facilitated using a demonstrative simplified protocol
 2. A connection with an OpenAI /realtime endpoint, facilitated via SDK library use
 
-### Running
+### Configuring and Running
 
 If the `AZURE_OPENAI_ENDPOINT` variable is set (via environment variable or IConfiguration), the middle tier will attempt to connect to that URI as an Azure OpenAI resource.
 
@@ -19,6 +19,8 @@ If not using Azure OpenAI, an OpenAI endpoint will be used:
 - `OPENAI_API_KEY` is required and will be used to authenticate
 - If provided, an optional value of `OPENAI_ENDPOINT` will be used instead of the default
 - If provided, an optional value of `OPENAI_MODEL` will be used instead of a default of `gpt-4o-realtime-preview`
+
+With configuration available, `dotnet run` will start the service on port 8080 or an override value specified via `PORT`. Once started, a frontend client can immediately connect to the middle tier.
 
 ### Code
 

@@ -19,7 +19,6 @@ import com.azure.ai.openai.realtime.models.ResponseAudioTranscriptDoneEvent;
 import com.azure.ai.openai.realtime.models.ResponseCreateEvent;
 import com.azure.ai.openai.realtime.models.SessionUpdateEvent;
 import com.azure.ai.openai.realtime.utils.ConversationItem;
-import com.azure.core.util.CoreUtils;
 import com.azure.sample.openai.realtime.spring_backend.messages.ControlMessage;
 import com.azure.sample.openai.realtime.spring_backend.messages.TextDeltaMessage;
 import com.azure.sample.openai.realtime.spring_backend.messages.TranscriptionMessage;

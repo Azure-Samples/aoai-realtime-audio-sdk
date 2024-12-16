@@ -57,6 +57,7 @@ The application defines its own protocol for client-server communication:
 
 - **Control Messages**: Manage connection status and actions (e.g., connected, speech_started, text_done).
 - **User Messages**: Send user text inputs (user_message).
+- **Transcriptions**: Receive transcribed text from audio inputs (transcription).
 - **Text Deltas**: Stream partial text responses (text_delta).
 
 This protocol focuses on essential features and can be extended as needed.
@@ -75,6 +76,12 @@ class TextDelta {
 class UserMessage {
     String id;
     MessageType type = MessageType.USER_MESSAGE;
+    String text;
+}
+
+class TranscriptionMessage {
+    String id;
+    MessageType type = MessageType.TRANSCRIPTION;
     String text;
 }
 

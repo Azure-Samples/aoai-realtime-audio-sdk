@@ -1,6 +1,7 @@
 package com.azure.sample.openai.realtime.spring_backend.handlers;
 
 import com.azure.ai.openai.realtime.RealtimeAsyncClient;
+import com.azure.ai.openai.realtime.models.ConversationItemInputAudioTranscriptionCompletedEvent;
 import com.azure.ai.openai.realtime.models.InputAudioBufferAppendEvent;
 import com.azure.ai.openai.realtime.models.RealtimeAudioFormat;
 import com.azure.ai.openai.realtime.models.RealtimeAudioInputTranscriptionModel;
@@ -18,8 +19,10 @@ import com.azure.ai.openai.realtime.models.ResponseAudioTranscriptDoneEvent;
 import com.azure.ai.openai.realtime.models.ResponseCreateEvent;
 import com.azure.ai.openai.realtime.models.SessionUpdateEvent;
 import com.azure.ai.openai.realtime.utils.ConversationItem;
+import com.azure.core.util.CoreUtils;
 import com.azure.sample.openai.realtime.spring_backend.messages.ControlMessage;
 import com.azure.sample.openai.realtime.spring_backend.messages.TextDeltaMessage;
+import com.azure.sample.openai.realtime.spring_backend.messages.TranscriptionMessage;
 import com.azure.sample.openai.realtime.spring_backend.messages.UserMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -129,8 +132,23 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
                 getLooperFlux().ofType(ResponseAudioDeltaEvent.class)
                         .subscribe(this::handleAudioDelta),
                 getLooperFlux().ofType(ResponseAudioDoneEvent.class)
-                        .subscribe(this::handleAudioDone)
+                        .subscribe(this::handleAudioDone),
+                getLooperFlux().ofType(ConversationItemInputAudioTranscriptionCompletedEvent.class)
+                        .subscribe(this::handleInputAudio)
         ));
+    }
+
+    private void handleInputAudio(ConversationItemInputAudioTranscriptionCompletedEvent inputAudioEvent) {
+        try {
+            String payload = objectMapper.writeValueAsString(new ControlMessage("speech_started"));
+            currentSession.sendMessage(new TextMessage(payload));
+            TranscriptionMessage transcription = new TranscriptionMessage(inputAudioEvent.getItemId())
+                    .setText(inputAudioEvent.getTranscript());
+            currentSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(transcription)));
+            logger.atInfo().log("Input audio successfully processed of length: " + inputAudioEvent.getTranscript().length());
+        } catch (IOException e) {
+            logger.atError().setCause(e).log("Error sending speech started message");
+        }
     }
 
     private void handleAudioDone(ResponseAudioDoneEvent audioDoneEvent) {

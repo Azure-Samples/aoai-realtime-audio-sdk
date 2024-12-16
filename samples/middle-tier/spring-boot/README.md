@@ -43,11 +43,13 @@ To run the server `./gradlew bootRun`
 
 ### Intellij
 
-Find the `bootRun` task in the gradle task panel:
+Find the `bootRun` task in the gradle task panel and run it:
 
 ![alt text](gradle-task-panel.png)
 
-Once you have found the right gradle task `application->bootRun` modify the configuration like shown in the image:
+If you have setup a `.env` file in the root of the project, `application->bootRun` should launch the application with the values you've specified. 
+
+Alternatively, if you prefer not having a `.env` file, modify the IDE's launch configuration like shown in the image:
 
 ![alt text](run-config.png)
 

@@ -10,6 +10,7 @@ import com.azure.ai.openai.realtime.models.RealtimeClientEventResponseCreateResp
 import com.azure.ai.openai.realtime.models.RealtimeRequestSession;
 import com.azure.ai.openai.realtime.models.RealtimeRequestSessionModality;
 import com.azure.ai.openai.realtime.models.RealtimeServerEvent;
+import com.azure.ai.openai.realtime.models.RealtimeServerEventErrorError;
 import com.azure.ai.openai.realtime.models.RealtimeServerVadTurnDetection;
 import com.azure.ai.openai.realtime.models.RealtimeVoice;
 import com.azure.ai.openai.realtime.models.ResponseAudioDeltaEvent;
@@ -17,6 +18,7 @@ import com.azure.ai.openai.realtime.models.ResponseAudioDoneEvent;
 import com.azure.ai.openai.realtime.models.ResponseAudioTranscriptDeltaEvent;
 import com.azure.ai.openai.realtime.models.ResponseAudioTranscriptDoneEvent;
 import com.azure.ai.openai.realtime.models.ResponseCreateEvent;
+import com.azure.ai.openai.realtime.models.ServerErrorReceivedException;
 import com.azure.ai.openai.realtime.models.SessionUpdateEvent;
 import com.azure.ai.openai.realtime.utils.ConversationItem;
 import com.azure.sample.openai.realtime.spring_backend.messages.ControlMessage;
@@ -190,7 +192,20 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
     private Flux<RealtimeServerEvent> getLooperFlux() {
         return realtimeAsyncClient.getServerEvents().onErrorResume((throwable) -> {
             // Log the error and continue listening for events.
-            logger.atError().setCause(throwable).log("Error sent from the Realtime server");
+            if (throwable instanceof ServerErrorReceivedException) {
+                ServerErrorReceivedException error = (ServerErrorReceivedException) throwable;
+                RealtimeServerEventErrorError errorDetails = error.getErrorDetails();
+                logger.atError().setCause(throwable)
+                        .addKeyValue("eventId", errorDetails.getEventId())
+                        .addKeyValue("code", String.valueOf(errorDetails.getCode()))
+                        .addKeyValue("message", errorDetails.getMessage())
+                        .addKeyValue("type", errorDetails.getType())
+                        .addKeyValue("param", errorDetails.getParam())
+                        .log("Received a ServerErrorReceivedException");
+                logger.atError().log("Error message: " + errorDetails.getMessage());
+            } else {
+                logger.atError().setCause(throwable).log("Error sent from the Realtime server");
+            }
             // TODO resend session config.
             // errors with eventId is defined is not a terminal error.
             return realtimeAsyncClient.getServerEvents();

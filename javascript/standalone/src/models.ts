@@ -170,8 +170,8 @@ export interface ItemDeleteMessage extends ClientMessageBase {
 }
 
 export interface ResponseCreateParams {
-  commit: boolean;
-  cancel_previous: boolean;
+  commit?: boolean;
+  cancel_previous?: boolean;
   append_input_items?: Item[];
   input_items?: Item[];
   instructions?: string;

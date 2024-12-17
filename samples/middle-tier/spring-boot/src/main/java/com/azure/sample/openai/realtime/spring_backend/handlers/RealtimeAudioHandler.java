@@ -191,6 +191,8 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
         return realtimeAsyncClient.getServerEvents().onErrorResume((throwable) -> {
             // Log the error and continue listening for events.
             logger.atError().setCause(throwable).log("Error sent from the Realtime server");
+            // TODO resend session config.
+            // errors with eventId is defined is not a terminal error.
             return realtimeAsyncClient.getServerEvents();
         });
     }

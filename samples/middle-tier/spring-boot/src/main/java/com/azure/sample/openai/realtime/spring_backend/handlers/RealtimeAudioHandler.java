@@ -107,7 +107,8 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
         disposables.add(realtimeAsyncClient.sendMessage(ConversationItem.createUserMessage(userMessage.getText()))
                 .then(realtimeAsyncClient.sendMessage(new ResponseCreateEvent(
                         new RealtimeClientEventResponseCreateResponse())))
-                .subscribe());
+                .subscribe(it -> logger.atInfo().log("User message sent"),
+                        throwable -> handleSendError(throwable, session)));
     }
 
     @Override
@@ -115,7 +116,19 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
         logger.atInfo().log("Binary message received");
         disposables.add(realtimeAsyncClient.sendMessage(
                 new InputAudioBufferAppendEvent(message.getPayload().array()))
-            .subscribe());
+            .subscribe(it -> logger.atInfo().log("User audio sent"),
+                    throwable -> handleSendError(throwable, session)));
+    }
+
+    private void handleSendError(Throwable throwable, WebSocketSession session) {
+        logger.atError().setCause(throwable).log("Error sending message");
+        logger.atInfo().log("Terminating connection");
+        try {
+            session.close(new CloseStatus(CloseStatus.SERVER_ERROR.getCode(), throwable.getMessage()));
+            session.close();
+        } catch (IOException e) {
+            logger.atError().setCause(e).log("Error closing session");
+        }
     }
 
     @Override

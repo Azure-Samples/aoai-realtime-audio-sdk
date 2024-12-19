@@ -219,8 +219,8 @@ public class RealtimeAudioHandler extends TextWebSocketHandler {
             } else {
                 logger.atError().setCause(throwable).log("Error sent from the Realtime server");
             }
-            // TODO resend session config.
-            // errors with eventId is defined is not a terminal error.
+            // errors where eventId is defined are not a terminal error.
+            // otherwise, we could restart with a new session, if the configuration is always the same.
             return realtimeAsyncClient.getServerEvents();
         });
     }

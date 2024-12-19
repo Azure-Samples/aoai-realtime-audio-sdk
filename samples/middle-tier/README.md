@@ -15,10 +15,11 @@ When building applications that leverage Azure OpenAI or OpenAI's Realtime APIs,
 
 ```
 samples/middle-tier/
-├── node-express/       # Node.js backend implementation
-├── python-fastapi/     # Python backend implementation
-├── spring-boot/        # Spring boot Java backend implementation
-└── generic-frontend/   # React-based frontend application
+├── node-express/                 # Node.js backend implementation
+├── python-fastapi/               # Python backend implementation
+├── spring-boot/                  # Spring boot Java backend implementation
+├── dotnet-aspnetcore-mvc/        # ASP.NET Core MVC C# backend implementation
+└── generic-frontend/             # React-based frontend application
 ```
 
 ## Available Samples

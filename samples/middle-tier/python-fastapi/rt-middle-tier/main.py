@@ -14,6 +14,7 @@ from fastapi.websockets import WebSocketState
 from loguru import logger
 from rtclient import (
     InputAudioTranscription,
+    InputTextContentPart,
     RTAudioContent,
     RTClient,
     RTInputAudioItem,
@@ -132,10 +133,12 @@ class RTSession:
             if parsed["type"] == "user_message":
                 await self.client.send_item(
                     UserMessageItem(
-                        content=[{"type": "input_text", "text": parsed["text"]}],
+                        content=[InputTextContentPart(text=parsed["text"])],
                     )
                 )
+                # Trigger the response generation and wait for the response
                 await self.client.generate_response()
+
                 self.logger.debug("User message processed successfully")
         except Exception as error:
             self.logger.error(f"Failed to process user message: {error}")

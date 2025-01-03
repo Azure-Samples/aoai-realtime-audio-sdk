@@ -18,7 +18,7 @@
     "@radix-ui/react-switch": "^1.1.1",
     "class-variance-authority": "^0.7.0",
     "lucide-react": "^0.453.0",
-    "next": "15.0.1",
+    "next": "15.1.2",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "rt-client": "https://github.com/Azure-Samples/aoai-realtime-audio-sdk/releases/download/js/v0.5.0/rt-client-0.5.0.tgz",

@@ -42,6 +42,7 @@ export {
   RateLimitsUpdatedMessage,
   RealtimeError,
   Response,
+  ResponseBlendShapeMessage,
   ResponseAudioDeltaMessage,
   ResponseAudioDoneMessage,
   ResponseAudioTranscriptDeltaMessage,

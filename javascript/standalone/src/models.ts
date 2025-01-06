@@ -526,6 +526,15 @@ export interface ExtensionAvatarConnectingMessage extends ServerMessageBase {
   server_description: string;
 }
 
+export interface ResponseBlendShapeMessage extends ServerMessageBase {
+  type: "response.animation.blendshapes";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index: number;
+  blendshapes: string;
+}
+
 export type UserMessageType =
   | SessionUpdateMessage
   | InputAudioBufferAppendMessage
@@ -563,6 +572,7 @@ export type ServerMessageType =
   | ResponseAudioTranscriptDoneMessage
   | ResponseAudioDeltaMessage
   | ResponseAudioDoneMessage
+  | ResponseBlendShapeMessage
   | ResponseFunctionCallArgumentsDeltaMessage
   | ResponseFunctionCallArgumentsDoneMessage
   | RateLimitsUpdatedMessage

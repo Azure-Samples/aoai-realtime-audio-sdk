@@ -37,9 +37,9 @@ export function azureOpenAISettings(
 
   const scopes = ["https://cognitiveservices.azure.com/.default"];
 
-  uri.searchParams.set("api-version", "2024-10-01-preview");
+  uri.searchParams.set("api-version", options.apiVersion ?? "2024-10-01-preview");
   uri.searchParams.set("deployment", options.deployment);
-  uri.pathname = "openai/realtime";
+  uri.pathname = options.path ?? "openai/realtime";
   return {
     uri,
     headers: {

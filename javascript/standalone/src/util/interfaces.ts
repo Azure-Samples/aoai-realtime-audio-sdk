@@ -20,6 +20,8 @@ export interface RTOpenAIOptions {
 export interface RTAzureOpenAIOptions {
   deployment: string;
   requestId?: string;
+  apiVersion?: string;
+  path?: string;
 }
 
 export const isRTOpenAIOptions = (

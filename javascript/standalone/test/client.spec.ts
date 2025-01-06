@@ -232,11 +232,11 @@ describe.each([
         });
         const response = await client.generateResponse();
         expect(response).toBeDefined();
-        expect(response.id).toBeDefined();
-        expect(response.id!.length).toBeGreaterThan(0);
-        for await (const item of response) {
+        expect(response!.id).toBeDefined();
+        expect(response!.id!.length).toBeGreaterThan(0);
+        for await (const item of response!) {
           expect(item).toBeDefined();
-          expect(item.responseId).toBe(response.id);
+          expect(item.responseId).toBe(response!.id);
           expect(item.previousItemId).toBe(sentItem.id);
         }
       });
@@ -254,14 +254,15 @@ describe.each([
           ],
         });
         const response = await client.generateResponse();
-        await response.cancel();
+        expect(response).toBeDefined();
+        await response!.cancel();
 
         let itemCount = 0;
-        for await (const _item of response) {
+        for await (const _item of response!) {
           itemCount++;
         }
         expect(itemCount).toBe(0);
-        expect(["cancelled", "completed"].includes(response.status));
+        expect(["cancelled", "completed"].includes(response!.status));
       });
 
       it("items should properly be emitted for text in text out", async () => {
@@ -277,8 +278,9 @@ describe.each([
           ],
         });
         const response = await client.generateResponse();
+        expect(response).toBeDefined();
 
-        for await (const item of response) {
+        for await (const item of response!) {
           expect(item.type).toBe("message");
           assert(item.type === "message");
           for await (const part of item) {
@@ -309,8 +311,9 @@ describe.each([
           ],
         });
         const response = await client.generateResponse();
+        expect(response).toBeDefined();
 
-        for await (const item of response) {
+        for await (const item of response!) {
           expect(item.type).toBe("message");
           assert(item.type === "message");
           for await (const part of item) {
@@ -366,8 +369,9 @@ describe.each([
             ],
           });
           const response = await client.generateResponse();
+          expect(response).toBeDefined();
 
-          for await (const item of response) {
+          for await (const item of response!) {
             expect(item.type).toBe("function_call");
             assert(item.type === "function_call");
             expect(item.functionName).toBe("get_weather_by_location");
@@ -398,8 +402,9 @@ describe.each([
             ],
           });
           const response = await client.generateResponse();
+          expect(response).toBeDefined();
 
-          for await (const item of response) {
+          for await (const item of response!) {
             expect(item.type).toBe("function_call");
             assert(item.type === "function_call");
             expect(item.functionName).toBe("get_weather_by_location");
@@ -430,8 +435,9 @@ describe.each([
             ],
           });
           const response = await client.generateResponse();
+          expect(response).toBeDefined();
 
-          for await (const item of response) {
+          for await (const item of response!) {
             expect(item.type).toBe("function_call");
             assert(item.type === "function_call");
             expect(item.functionName).toBe("get_weather_by_location");
@@ -462,8 +468,9 @@ describe.each([
             ],
           });
           const response = await client.generateResponse();
+          expect(response).toBeDefined();
 
-          for await (const item of response) {
+          for await (const item of response!) {
             expect(item.type).toBe("function_call");
             assert(item.type === "function_call");
             expect(item.functionName).toBe("get_weather_by_location");

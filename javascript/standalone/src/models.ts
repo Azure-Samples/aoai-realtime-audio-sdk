@@ -1,7 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-export type Voice = "alloy" | "shimmer" | "echo";
+export type Voice =
+  | "alloy"
+  | "ash"
+  | "ballad"
+  | "coral"
+  | "echo"
+  | "sage"
+  | "shimmer"
+  | "verse";
 export type AudioFormat = "pcm16" | "g711-ulaw" | "g711-alaw";
 export type Modality = "text" | "audio";
 
@@ -162,8 +170,8 @@ export interface ItemDeleteMessage extends ClientMessageBase {
 }
 
 export interface ResponseCreateParams {
-  commit: boolean;
-  cancel_previous: boolean;
+  commit?: boolean;
+  cancel_previous?: boolean;
   append_input_items?: Item[];
   input_items?: Item[];
   instructions?: string;
@@ -379,10 +387,23 @@ export type ResponseStatusDetails =
   | ResponseIncompleteDetails
   | ResponseFailedDetails;
 
+export interface InputTokenDetails {
+  cached_tokens: number;
+  text_tokens: number;
+  audio_tokens: number;
+}
+
+export interface OutputTokenDetails {
+  text_tokens: number;
+  audio_tokens: number;
+}
+
 export interface Usage {
   total_tokens: number;
   input_tokens: number;
   output_tokens: number;
+  input_token_details: InputTokenDetails;
+  output_token_details: OutputTokenDetails;
 }
 
 export interface Response {

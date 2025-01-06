@@ -14,7 +14,7 @@ from pydantic import (
 
 from rtclient.util.model_helpers import ModelWithDefaults
 
-Voice = Literal["alloy", "shimmer", "echo"]
+Voice = Literal["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"]
 AudioFormat = Literal["pcm16", "g711-ulaw", "g711-alaw"]
 Modality = Literal["text", "audio"]
 
@@ -453,10 +453,23 @@ ResponseStatusDetails = Annotated[
 ]
 
 
+class InputTokenDetails(BaseModel):
+    cached_tokens: int
+    text_tokens: int
+    audio_tokens: int
+
+
+class OutputTokenDetails(BaseModel):
+    text_tokens: int
+    audio_tokens: int
+
+
 class Usage(BaseModel):
     total_tokens: int
     input_tokens: int
     output_tokens: int
+    input_token_details: InputTokenDetails
+    output_token_details: OutputTokenDetails
 
 
 class Response(BaseModel):

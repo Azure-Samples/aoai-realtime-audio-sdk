@@ -1,6 +1,6 @@
 {
   "name": "rt-client",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "scripts": {
     "test": "vitest",
     "build": "rollup -c",
@@ -37,6 +37,7 @@
   "files": [
     "dist"
   ],
+  "type": "module",
   "exports": {
     "./package.json": "./package.json",
     ".": {

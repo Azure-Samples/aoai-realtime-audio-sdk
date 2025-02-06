@@ -39,6 +39,13 @@ export interface InputAudioTranscription {
   model: "whisper-1";
 }
 
+export interface AvatarConfig {
+  ice_servers?: RTCIceServer[];
+  character: string;
+  style?: string;
+  customized?: boolean;
+}
+
 export interface ClientMessageBase {
   event_id?: string;
 }
@@ -58,6 +65,7 @@ export interface SessionUpdateParams {
   tool_choice?: ToolChoice;
   temperature?: number;
   max_response_output_tokens?: number;
+  avatar?: AvatarConfig;
 }
 
 export interface SessionUpdateMessage extends ClientMessageBase {
@@ -193,11 +201,9 @@ export interface ResponseCancelMessage extends ClientMessageBase {
   type: "response.cancel";
 }
 
-export interface ExtensionAvatarConnectMessage extends ClientMessageBase {
-  type: "extension.avatar.connect";
-  client_description: string;
-  customized?: boolean;
-  avatar_id?: string;
+export interface SessionAvatarConnectMessage extends ClientMessageBase {
+  type: "session.avatar.connect";
+  client_sdp: string;
 }
 
 export interface RealtimeError {
@@ -231,7 +237,7 @@ export interface Session {
   tool_choice: ToolChoice;
   temperature: number;
   max_response_output_tokens?: number;
-  ice_servers?: RTCIceServer[];
+  avatar?: AvatarConfig;
 }
 
 export interface SessionCreatedMessage extends ServerMessageBase {
@@ -542,9 +548,9 @@ export interface RateLimitsUpdatedMessage extends ServerMessageBase {
   rate_limits: RateLimits[];
 }
 
-export interface ExtensionAvatarConnectingMessage extends ServerMessageBase {
-  type: "extension.avatar.connecting";
-  server_description: string;
+export interface SessionAvatarConnectingMessage extends ServerMessageBase {
+  type: "session.avatar.connecting";
+  server_sdp: string;
 }
 
 export interface ResponseBlendShapeMessage extends ServerMessageBase {
@@ -566,7 +572,7 @@ export type UserMessageType =
   | ItemDeleteMessage
   | ResponseCreateMessage
   | ResponseCancelMessage
-  | ExtensionAvatarConnectMessage;
+  | SessionAvatarConnectMessage;
 
 export type ServerMessageType =
   | ErrorMessage
@@ -597,4 +603,4 @@ export type ServerMessageType =
   | ResponseFunctionCallArgumentsDeltaMessage
   | ResponseFunctionCallArgumentsDoneMessage
   | RateLimitsUpdatedMessage
-  | ExtensionAvatarConnectingMessage;
+  | SessionAvatarConnectingMessage;

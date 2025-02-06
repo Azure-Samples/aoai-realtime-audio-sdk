@@ -38,6 +38,7 @@ export const isServerMessageType = (
     "response.function_call_arguments.delta",
     "response.function_call_arguments.done",
     "rate_limits.updated",
-    "extension.avatar.connecting",
+    "session.avatar.connecting",
+    "session.avatar.connected",
     "response.animation.blendshapes",
   ].includes(message.type);

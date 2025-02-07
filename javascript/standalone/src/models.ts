@@ -52,6 +52,16 @@ export interface ClientMessageBase {
 
 export type ToolsDefinition = Record<string, any>[];
 
+interface EchoCancellation {
+  type: "echo-cancellation";
+}
+
+interface NoiseSuppression {
+  type: "noise-suppression";
+}
+
+export type InputAudioEnhancement = EchoCancellation | NoiseSuppression;
+
 export interface SessionUpdateParams {
   model?: string;
   modalities?: Modality[];
@@ -66,6 +76,7 @@ export interface SessionUpdateParams {
   temperature?: number;
   max_response_output_tokens?: number;
   avatar?: AvatarConfig;
+  input_audio_enhancements?: InputAudioEnhancement[];
 }
 
 export interface SessionUpdateMessage extends ClientMessageBase {

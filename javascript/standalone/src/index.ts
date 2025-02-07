@@ -20,6 +20,7 @@ export {
   InputAudioBufferSpeechStartedMessage,
   InputAudioBufferSpeechStoppedMessage,
   InputAudioContentPart,
+  InputAudioEnhancement,
   InputAudioTranscription,
   InputTextContentPart,
   Item,

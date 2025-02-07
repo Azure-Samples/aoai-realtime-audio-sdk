@@ -249,6 +249,7 @@ export interface Session {
   temperature: number;
   max_response_output_tokens?: number;
   avatar?: AvatarConfig;
+  input_audio_enhancements?: InputAudioEnhancement[];
 }
 
 export interface SessionCreatedMessage extends ServerMessageBase {

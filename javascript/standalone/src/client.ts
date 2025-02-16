@@ -946,13 +946,15 @@ export class RTClient {
         } else if (message.type === "error") {
           throw new RTError(message.error);
         } else if (message.type === "input_audio_buffer.speech_started") {
-          yield RTInputAudioItem.create(
+          const input_audio_item = RTInputAudioItem.create(
             message.item_id,
             message.audio_start_ms,
             this.session?.input_audio_transcription !== undefined &&
               this.session?.input_audio_transcription !== null,
             this.messageQueue,
           );
+          yield input_audio_item;
+          await input_audio_item.waitForCompletion();
         } else if (message.type === "response.created") {
           yield RTResponse.create(
             message.response,

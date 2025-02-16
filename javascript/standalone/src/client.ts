@@ -780,19 +780,19 @@ export class RTClient {
       if (this.session !== undefined) {
         return;
       }
-      const message = await this.messageQueue.receive(
-        (m) => m.type === "session.created",
-      );
-      if (message === null) {
-        throw new Error("Failed to initialize session");
-      }
-      if (message.type === "error") {
-        throw new RTError(message.error);
-      }
-      if (message.type !== "session.created") {
-        throw new Error("Unexpected message type");
-      }
-      this.session = message.session;
+      // const message = await this.messageQueue.receive(
+      //   (m) => m.type === "session.created",
+      // );
+      // if (message === null) {
+      //   throw new Error("Failed to initialize session");
+      // }
+      // if (message.type === "error") {
+      //   throw new RTError(message.error);
+      // }
+      // if (message.type !== "session.created") {
+      //   throw new Error("Unexpected message type");
+      // }
+      // this.session = message.session;
     })();
     return this.initPromise;
   }

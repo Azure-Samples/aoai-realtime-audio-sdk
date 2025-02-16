@@ -1,6 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+export type AzurePlatformVoice = {
+  type: "azure-platform";
+  name: string;
+}
+export type CustomVoice = {
+  type: "custom";
+  name: string;
+  endpoint_id: string;
+}
 export type Voice =
   | "alloy"
   | "ash"
@@ -9,7 +18,9 @@ export type Voice =
   | "echo"
   | "sage"
   | "shimmer"
-  | "verse";
+  | "verse"
+  | AzurePlatformVoice
+  | CustomVoice;
 export type AudioFormat = "pcm16" | "g711-ulaw" | "g711-alaw";
 export type Modality = "text" | "audio";
 

@@ -9,6 +9,8 @@ export {
   ClientMessageBase,
   ErrorMessage,
 
+  AzurePlatformVoice,
+  CustomVoice,
   FunctionCallItem,
   FunctionCallOutputItem,
   FunctionToolChoice,

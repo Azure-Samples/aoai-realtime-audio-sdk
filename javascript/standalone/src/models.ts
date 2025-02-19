@@ -35,7 +35,14 @@ export interface ServerVAD {
   silence_duration_ms?: number;
 }
 
-export type TurnDetection = ServerVAD | null;
+export interface ServerSD {
+  type: "server_sd";
+  threshold?: number;
+  prefix_padding_ms?: number;
+  silence_duration_ms?: number;
+}
+
+export type TurnDetection = ServerVAD | ServerSD | null;
 
 export interface FunctionToolChoice {
   type: "function";

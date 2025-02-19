@@ -177,7 +177,7 @@ class RTInputAudioItem {
     public audioStartMillis: Optional<number>,
     private hasTranscription: boolean,
     private queue: MessageQueueWithError<ServerMessageType>,
-  ) {}
+  ) { }
 
   static create(
     id: string,
@@ -452,7 +452,7 @@ class RTMessageItem implements AsyncIterable<RTMessageContent> {
     private item: ResponseMessageItem,
     public previousItemId: Optional<string>,
     private queue: MessageQueueWithError<ServerMessageType>,
-  ) {}
+  ) { }
 
   static create(
     responseId: string,
@@ -520,7 +520,7 @@ class RTFunctionCallItem implements AsyncIterable<string> {
     private item: ResponseFunctionCallItem,
     public previousItemId: Optional<string>,
     private queue: MessageQueueWithError<ServerMessageType>,
-  ) {}
+  ) { }
 
   static create(
     responseId: string,
@@ -618,7 +618,7 @@ class RTResponse implements AsyncIterable<RTOutputItem> {
     private response: Response,
     private queue: MessageQueueWithError<ServerMessageType>,
     private client: LowLevelRTClient,
-  ) {}
+  ) { }
 
   static create(
     response: Response,
@@ -843,7 +843,7 @@ export class RTClient {
         message.item_id,
         undefined,
         this.session?.input_audio_transcription !== undefined &&
-          this.session?.input_audio_transcription !== null,
+        this.session?.input_audio_transcription !== null,
         this.messageQueue,
       );
     } else {
@@ -862,6 +862,29 @@ export class RTClient {
     } else if (message.type === "error") {
       throw new RTError(message.error);
     } else if (message.type !== "input_audio_buffer.cleared") {
+      throw new Error("Unexpected message type");
+    }
+  }
+
+  async connectAvatar(client_sdp: RTCSessionDescription): Promise<RTCSessionDescription> {
+    await this.init();
+    const base64 = btoa(JSON.stringify(client_sdp));
+    await this.client.send({
+      type: "session.avatar.connect",
+      client_sdp: base64,
+    });
+    const message = await this.messageQueue.receive(
+      (m) => m.type === "session.avatar.connecting",
+    );
+    if (message === null) {
+      throw new Error("Failed to connect avatar");
+    } else if (message.type === "error") {
+      throw new RTError(message.error);
+    } else if (message.type === "session.avatar.connecting") {
+      return new RTCSessionDescription(
+        JSON.parse(atob(message.server_sdp)) as RTCSessionDescriptionInit,
+      );
+    } else {
       throw new Error("Unexpected message type");
     }
   }
@@ -950,7 +973,7 @@ export class RTClient {
             message.item_id,
             message.audio_start_ms,
             this.session?.input_audio_transcription !== undefined &&
-              this.session?.input_audio_transcription !== null,
+            this.session?.input_audio_transcription !== null,
             this.messageQueue,
           );
           yield input_audio_item;

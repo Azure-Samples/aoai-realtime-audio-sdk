@@ -44,6 +44,18 @@ export interface ServerSD {
 
 export type TurnDetection = ServerVAD | ServerSD | null;
 
+export interface LivekitEOU {
+  model: "livekit";
+  threshold?: number;
+}
+
+export interface AzureEOU {
+  model: "azureai";
+  threshold?: number;
+}
+
+export type EOUDetection = LivekitEOU | AzureEOU | null;
+
 export interface FunctionToolChoice {
   type: "function";
   function: string;
@@ -95,6 +107,7 @@ export interface SessionUpdateParams {
   max_response_output_tokens?: number;
   avatar?: AvatarConfig;
   input_audio_enhancements?: InputAudioEnhancement[];
+  end_of_utterance_detection?: EOUDetection;
 }
 
 export interface SessionUpdateMessage extends ClientMessageBase {
@@ -268,6 +281,7 @@ export interface Session {
   max_response_output_tokens?: number;
   avatar?: AvatarConfig;
   input_audio_enhancements?: InputAudioEnhancement[];
+  end_of_utterance_detection?: EOUDetection;
 }
 
 export interface SessionCreatedMessage extends ServerMessageBase {

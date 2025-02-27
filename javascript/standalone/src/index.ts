@@ -6,11 +6,12 @@ export {
   AssistantMessageItem,
   AudioFormat,
   AvatarConfig,
-  ClientMessageBase,
-  ErrorMessage,
-
+  AzureEOU,
   AzurePlatformVoice,
+  ClientMessageBase,
   CustomVoice,
+  EOUDetection,
+  ErrorMessage,
   FunctionCallItem,
   FunctionCallOutputItem,
   FunctionToolChoice,
@@ -35,6 +36,7 @@ export {
   ItemParamStatus,
   ItemTruncatedMessage,
   ItemTruncateMessage,
+  LivekitEOU,
   MessageItem,
   MessageItemType,
   MessageRole,
@@ -45,11 +47,11 @@ export {
   RateLimitsUpdatedMessage,
   RealtimeError,
   Response,
-  ResponseBlendShapeMessage,
   ResponseAudioDeltaMessage,
   ResponseAudioDoneMessage,
   ResponseAudioTranscriptDeltaMessage,
   ResponseAudioTranscriptDoneMessage,
+  ResponseBlendShapeMessage,
   ResponseCancelledDetails,
   ResponseCancelMessage,
   ResponseContentPartAddedMessage,
@@ -81,14 +83,15 @@ export {
   ResponseTextDoneMessage,
   ServerMessageBase,
   ServerMessageType,
+  ServerSD,
   ServerVAD,
   Session,
+  SessionAvatarConnectingMessage,
+  SessionAvatarConnectMessage,
   SessionCreatedMessage,
   SessionUpdatedMessage,
   SessionUpdateMessage,
   SessionUpdateParams,
-  SessionAvatarConnectMessage,
-  SessionAvatarConnectingMessage,
   SystemContentPart,
   SystemMessageItem,
   ToolChoice,
@@ -98,12 +101,14 @@ export {
   UserContentPart,
   UserMessageItem,
   UserMessageType,
-  Voice,
+  Voice
 } from "./models";
 
-export { KeyCredential, TokenCredential, AccessToken } from "./util/auth";
+export { AccessToken, KeyCredential, TokenCredential } from "./util/auth";
 
 export {
+  isFunctionCallItem,
+  isMessageItem,
   LowLevelRTClient,
   RTAudioContent,
   RTClient,
@@ -113,9 +118,7 @@ export {
   RTMessageContent,
   RTMessageItem,
   RTResponse,
-  RTTextContent,
-  isFunctionCallItem,
-  isMessageItem,
+  RTTextContent
 } from "./client";
 
-export { RTOpenAIOptions, RTAzureOpenAIOptions } from "./util/interfaces";
+export { RTAzureOpenAIOptions, RTOpenAIOptions } from "./util/interfaces";

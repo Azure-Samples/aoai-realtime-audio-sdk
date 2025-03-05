@@ -4,11 +4,13 @@
 export type AzurePlatformVoice = {
   type: "azure-platform";
   name: string;
+  temperature?: number;
 }
 export type CustomVoice = {
   type: "custom";
   name: string;
   endpoint_id: string;
+  temperature?: number;
 }
 export type Voice =
   | "alloy"

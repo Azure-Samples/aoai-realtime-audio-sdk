@@ -68,7 +68,7 @@ export type ToolChoice = "auto" | "none" | "required" | FunctionToolChoice;
 export type MessageRole = "system" | "assistant" | "user";
 
 export interface InputAudioTranscription {
-  model: "whisper-1";
+  model: "whisper-1" | "azure-fast-transcription" | "s2s-ingraph";
 }
 
 export interface AvatarConfig {

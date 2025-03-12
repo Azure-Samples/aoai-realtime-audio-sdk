@@ -26,6 +26,11 @@ public class SpeakerOutput : IDisposable
 
     public void EnqueueForPlayback(BinaryData audioData)
     {
+        if (audioData == null)
+        {
+            return; // Skip if audio data is null
+        }
+        
         byte[] buffer = audioData.ToArray();
         _waveProvider.AddSamples(buffer, 0, buffer.Length);
     }

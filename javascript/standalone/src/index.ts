@@ -6,6 +6,7 @@ export {
   AssistantMessageItem,
   AudioFormat,
   AvatarConfig,
+  AvatarConfigVideoParams,
   AzureEOU,
   AzurePlatformVoice,
   ClientMessageBase,

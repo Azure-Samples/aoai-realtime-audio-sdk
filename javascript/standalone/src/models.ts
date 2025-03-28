@@ -68,7 +68,22 @@ export type ToolChoice = "auto" | "none" | "required" | FunctionToolChoice;
 export type MessageRole = "system" | "assistant" | "user";
 
 export interface InputAudioTranscription {
-  model: "whisper-1" | "azure-fast-transcription" | "s2s-ingraph";
+  model: "whisper-1" | "gpt-4o-transcribe" | "azure-fast-transcription" | "s2s-ingraph";
+  language?: string;
+  prompt?: string;
+}
+
+export interface AvatarConfigVideoParams {
+  bitrate?: number;
+  codec: "h264";
+  crop?: {
+    bottom_right: [number, number];
+    top_left: [number, number];
+  };
+  resolution?: {
+    width: number;
+    height: number;
+  }
 }
 
 export interface AvatarConfig {
@@ -76,6 +91,7 @@ export interface AvatarConfig {
   character: string;
   style?: string;
   customized?: boolean;
+  video?: AvatarConfigVideoParams;
 }
 
 export interface ClientMessageBase {

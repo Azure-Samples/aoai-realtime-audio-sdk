@@ -37,14 +37,15 @@ export interface ServerVAD {
   silence_duration_ms?: number;
 }
 
-export interface ServerSD {
-  type: "server_sd";
+export interface AzureSemanticVAD {
+  type: "azure_sematic_vad";
   threshold?: number;
   prefix_padding_ms?: number;
   silence_duration_ms?: number;
+  end_of_utterance_detection?: EOUDetection;
 }
 
-export type TurnDetection = ServerVAD | ServerSD | null;
+export type TurnDetection = ServerVAD | AzureSemanticVAD | null;
 
 export interface LivekitEOU {
   model: "livekit";
@@ -52,7 +53,7 @@ export interface LivekitEOU {
 }
 
 export interface AzureEOU {
-  model: "azureai";
+  model: "semantic_detection_v1";
   threshold?: number;
 }
 
@@ -100,15 +101,17 @@ export interface ClientMessageBase {
 
 export type ToolsDefinition = Record<string, any>[];
 
-interface EchoCancellation {
-  type: "echo-cancellation";
+export interface ServerEchoCancellation {
+  type: "server_echo_cancellation";
 }
 
-interface NoiseSuppression {
-  type: "noise-suppression";
+export interface AzureDeepNoiseSuppression {
+  type: "azure_deep_noise_suppression";
 }
 
-export type InputAudioEnhancement = EchoCancellation | NoiseSuppression;
+export type InputAudioEchoCancellation = ServerEchoCancellation | null;
+
+export type InputAudioNoiseReduction = AzureDeepNoiseSuppression | null;
 
 export interface SessionUpdateParams {
   model?: string;
@@ -124,8 +127,8 @@ export interface SessionUpdateParams {
   temperature?: number;
   max_response_output_tokens?: number;
   avatar?: AvatarConfig;
-  input_audio_enhancements?: InputAudioEnhancement[];
-  end_of_utterance_detection?: EOUDetection;
+  input_audio_noise_reduction?: InputAudioNoiseReduction;
+  input_audio_echo_cancellation?: InputAudioEchoCancellation;
 }
 
 export interface SessionUpdateMessage extends ClientMessageBase {
@@ -298,8 +301,8 @@ export interface Session {
   temperature: number;
   max_response_output_tokens?: number;
   avatar?: AvatarConfig;
-  input_audio_enhancements?: InputAudioEnhancement[];
-  end_of_utterance_detection?: EOUDetection;
+  input_audio_noise_reduction?: InputAudioNoiseReduction;
+  input_audio_echo_cancellation?: InputAudioEchoCancellation;
 }
 
 export interface SessionCreatedMessage extends ServerMessageBase {

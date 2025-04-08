@@ -38,7 +38,7 @@ export interface ServerVAD {
 }
 
 export interface AzureSemanticVAD {
-  type: "azure_sematic_vad";
+  type: "azure_semantic_vad";
   threshold?: number;
   prefix_padding_ms?: number;
   silence_duration_ms?: number;

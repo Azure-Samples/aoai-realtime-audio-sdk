@@ -42,6 +42,7 @@ export interface AzureSemanticVAD {
   threshold?: number;
   prefix_padding_ms?: number;
   silence_duration_ms?: number;
+  remove_filler_words?: boolean;
   end_of_utterance_detection?: EOUDetection;
 }
 

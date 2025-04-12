@@ -46,12 +46,15 @@ import {
   ConnectionSettings,
   isRTAzureOpenAIOptions,
   isRTOpenAIOptions,
+  isRTVoiceAgentOptions,
   RTAzureOpenAIOptions,
   RTOpenAIOptions,
+  RTVoiceAgentOptions,
 } from "./util/interfaces";
 import {
   azureOpenAISettings,
   openAISettings,
+  voiceAgentSettings,
 } from "./util/connection-settings";
 import { MessageQueueWithError, SharedEndQueue } from "./util/message_queue";
 import { generateId } from "./util/crypto";
@@ -97,12 +100,12 @@ export class LowLevelRTClient {
   constructor(
     uri: URL,
     credential: KeyCredential | TokenCredential,
-    options: RTAzureOpenAIOptions,
+    options: RTAzureOpenAIOptions | RTVoiceAgentOptions,
   );
   constructor(
     uriOrCredential: URL | KeyCredential,
-    credentialOrOptions: KeyCredential | TokenCredential | RTOpenAIOptions,
-    options?: RTAzureOpenAIOptions,
+    credentialOrOptions: KeyCredential | TokenCredential | RTOpenAIOptions | RTVoiceAgentOptions,
+    options?: RTAzureOpenAIOptions | RTVoiceAgentOptions,
   ) {
     const settings = (() => {
       if (
@@ -118,6 +121,15 @@ export class LowLevelRTClient {
           uriOrCredential as URL,
           credentialOrOptions,
           options,
+        );
+      } else if (
+        isCredential(credentialOrOptions) &&
+        isRTVoiceAgentOptions(options)
+      ) {
+        return voiceAgentSettings(
+          uriOrCredential as URL,
+          credentialOrOptions,
+          options as RTVoiceAgentOptions,
         );
       } else {
         throw new Error(
@@ -735,12 +747,12 @@ export class RTClient {
   constructor(
     uri: URL,
     credential: KeyCredential | TokenCredential,
-    options: RTAzureOpenAIOptions,
+    options: RTAzureOpenAIOptions | RTVoiceAgentOptions,
   );
   constructor(
     uriOrCredential: URL | KeyCredential,
     credentialOrOptions: KeyCredential | TokenCredential | RTOpenAIOptions,
-    options?: RTAzureOpenAIOptions,
+    options?: RTAzureOpenAIOptions | RTVoiceAgentOptions,
   ) {
     this.client = (() => {
       if (isKeyCredential(uriOrCredential)) {
@@ -752,7 +764,7 @@ export class RTClient {
         return new LowLevelRTClient(
           uriOrCredential as URL,
           credentialOrOptions as KeyCredential | TokenCredential,
-          options as RTAzureOpenAIOptions,
+          options as RTAzureOpenAIOptions | RTVoiceAgentOptions,
         );
       }
     })();

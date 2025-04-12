@@ -24,6 +24,22 @@ export interface RTAzureOpenAIOptions {
   path?: string;
 }
 
+export interface AzureAgentConfig {
+  agentId: string;
+  agentConnectionString: string;
+  agentAuthenticationIdentityClientId?: string;
+  agentAccessToken?: string;
+  threadId?: string;
+}
+
+export interface RTVoiceAgentOptions {
+  modelOrAgent: string | AzureAgentConfig;
+  profile?: string;
+  requestId?: string;
+  apiVersion?: string;
+  path?: string;
+}
+
 export const isRTOpenAIOptions = (
   options: unknown,
 ): options is RTOpenAIOptions => {
@@ -45,3 +61,13 @@ export const isRTAzureOpenAIOptions = (
     typeof (options as RTAzureOpenAIOptions).deployment === "string"
   );
 };
+
+export const isRTVoiceAgentOptions = (
+  options: unknown,
+): options is RTVoiceAgentOptions => {
+  return (
+    typeof options === "object" &&
+    options !== null &&
+    ("modelOrAgent" in options && (options as RTVoiceAgentOptions).modelOrAgent !== undefined)
+  );
+}

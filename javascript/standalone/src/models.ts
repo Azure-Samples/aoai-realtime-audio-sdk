@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-export type AzurePlatformVoice = {
-  type: "azure-platform";
+export type AzureStandardVoice = {
+  type: "azure-standard";
   name: string;
   temperature?: number;
 }
-export type CustomVoice = {
-  type: "custom";
+export type AzureCustomVoice = {
+  type: "azure-custom";
   name: string;
   endpoint_id: string;
   temperature?: number;
@@ -21,8 +21,8 @@ export type Voice =
   | "sage"
   | "shimmer"
   | "verse"
-  | AzurePlatformVoice
-  | CustomVoice;
+  | AzureStandardVoice
+  | AzureCustomVoice;
 export type AudioFormat = "pcm16" | "g711-ulaw" | "g711-alaw";
 export type Modality = "text" | "audio";
 
@@ -48,17 +48,12 @@ export interface AzureSemanticVAD {
 
 export type TurnDetection = ServerVAD | AzureSemanticVAD | null;
 
-export interface LivekitEOU {
-  model: "livekit";
-  threshold?: number;
-}
-
 export interface AzureEOU {
   model: "semantic_detection_v1";
   threshold?: number;
 }
 
-export type EOUDetection = LivekitEOU | AzureEOU | null;
+export type EOUDetection = AzureEOU | null;
 
 export interface FunctionToolChoice {
   type: "function";
@@ -70,7 +65,7 @@ export type ToolChoice = "auto" | "none" | "required" | FunctionToolChoice;
 export type MessageRole = "system" | "assistant" | "user";
 
 export interface InputAudioTranscription {
-  model: "whisper-1" | "gpt-4o-transcribe" | "azure-fast-transcription" | "s2s-ingraph";
+  model: "whisper-1" | "gpt-4o-transcribe" | "azure-fast-transcription";
   language?: string;
   prompt?: string;
 }

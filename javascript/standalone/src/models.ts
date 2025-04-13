@@ -2,12 +2,12 @@
 // Licensed under the MIT License.
 
 export type AzureStandardVoice = {
-  type: "azure-standard";
+  type: "azure-platform";
   name: string;
   temperature?: number;
 }
 export type AzureCustomVoice = {
-  type: "azure-custom";
+  type: "custom";
   name: string;
   endpoint_id: string;
   temperature?: number;

@@ -35,6 +35,7 @@ export interface ServerVAD {
   threshold?: number;
   prefix_padding_ms?: number;
   silence_duration_ms?: number;
+  end_of_utterance_detection?: EOUDetection;
 }
 
 export interface AzureSemanticVAD {

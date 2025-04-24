@@ -16,6 +16,7 @@ import {
   ResponseAudioTranscriptDoneMessage,
   ResponseContentPartAddedMessage,
   ResponseContentPartDoneMessage,
+  ResponseCreateParams,
   ResponseFunctionCallItem,
   ResponseItem,
   ResponseItemAudioContentPart,
@@ -943,9 +944,9 @@ export class RTClient {
     }
   }
 
-  async generateResponse(): Promise<RTResponse | undefined> {
+  async generateResponse(response?: ResponseCreateParams): Promise<RTResponse | undefined> {
     await this.init();
-    await this.client.send({ type: "response.create" });
+    await this.client.send({ type: "response.create", response });
     if (!this.iterating) {
       const message = await this.messageQueue.receive(
         (m) => m.type === "response.created",

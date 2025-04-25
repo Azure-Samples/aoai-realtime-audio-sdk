@@ -452,17 +452,20 @@ ResponseStatusDetails = Annotated[
     Field(discriminator="type"),
 ]
 
+class CachedTokenDetails(BaseModel):
+    text_tokens: int
+    audio_tokens: int
 
 class InputTokenDetails(BaseModel):
     cached_tokens: int
     text_tokens: int
     audio_tokens: int
+    cached_tokens_details: CachedTokenDetails
 
 
 class OutputTokenDetails(BaseModel):
     text_tokens: int
     audio_tokens: int
-
 
 class Usage(BaseModel):
     total_tokens: int
@@ -470,7 +473,6 @@ class Usage(BaseModel):
     output_tokens: int
     input_token_details: InputTokenDetails
     output_token_details: OutputTokenDetails
-
 
 class Response(BaseModel):
     id: str

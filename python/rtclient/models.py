@@ -453,10 +453,16 @@ ResponseStatusDetails = Annotated[
 ]
 
 
+class CachedTokenDetails(BaseModel):
+    text_tokens: int | None = None
+    audio_tokens: int | None = None
+
+
 class InputTokenDetails(BaseModel):
     cached_tokens: int
     text_tokens: int
     audio_tokens: int
+    cached_tokens_details: CachedTokenDetails | None = None
 
 
 class OutputTokenDetails(BaseModel):

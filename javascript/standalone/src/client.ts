@@ -944,10 +944,10 @@ export class RTClient {
     }
   }
 
-  async generateResponse(response?: ResponseCreateParams): Promise<RTResponse | undefined> {
+  async generateResponse(response?: ResponseCreateParams, waitForGenerated?: boolean): Promise<RTResponse | undefined> {
     await this.init();
     await this.client.send({ type: "response.create", response });
-    if (!this.iterating) {
+    if (!this.iterating && waitForGenerated === true) {
       const message = await this.messageQueue.receive(
         (m) => m.type === "response.created",
       );

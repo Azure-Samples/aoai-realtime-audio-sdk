@@ -68,27 +68,32 @@ export class WebSocketClient<U, D> implements AsyncIterable<D> {
           this.socket.onclose = this.getClosedHandler(resolve);
         });
         this.socket.onerror = this.handleError;
-        resolve();
+          resolve();
       };
       this.socket.onerror = (event: ErrorEvent) => {
-        this.error = event.error;
-        reject(event);
+        this.handleError(event);
+        reject(this.error);
       };
     });
   }
 
   private handleError(event: ErrorEvent) {
-    this.error = event.error;
+    this.error = event.error || new Error('unknown error');
     while (this.receiverQueue.length > 0) {
       const [_, reject] = this.receiverQueue.shift()!;
-      reject(event.error);
+      reject(this.error!);
     }
   }
 
   private getClosedHandler(
     closeResolve: (_: void) => void,
-  ): (_: CloseEvent) => void {
-    return (_: CloseEvent) => {
+  ): (event: CloseEvent) => void {
+    return (event: CloseEvent) => {
+      if (event.code !== 1000 && this.error === undefined) {
+        this.error = new Error(
+        `WebSocket connection closed with error: ${event.reason}, code: ${event.code}`,
+        );
+      }
       this.done = true;
       while (this.receiverQueue.length > 0) {
         const [resolve, reject] = this.receiverQueue.shift()!;

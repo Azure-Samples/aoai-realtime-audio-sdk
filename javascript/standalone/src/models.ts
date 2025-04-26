@@ -13,14 +13,17 @@ export type AzureCustomVoice = {
   temperature?: number;
 }
 export type Voice =
-  | "alloy"
-  | "ash"
-  | "ballad"
-  | "coral"
-  | "echo"
-  | "sage"
-  | "shimmer"
-  | "verse"
+  | 'alloy'
+  | 'ash'
+  | 'ballad'
+  | 'coral'
+  | 'echo'
+  | 'fable'
+  | 'onyx'
+  | 'nova'
+  | 'sage'
+  | 'shimmer'
+  | 'verse'
   | AzureStandardVoice
   | AzureCustomVoice;
 export type AudioFormat = "pcm16" | "g711-ulaw" | "g711-alaw";
@@ -242,15 +245,15 @@ export interface ItemDeleteMessage extends ClientMessageBase {
 }
 
 export interface ResponseCreateParams {
-  commit?: boolean;
-  cancel_previous?: boolean;
+  conversation?: 'auto' | 'none';
   append_input_items?: Item[];
   input_items?: Item[];
   instructions?: string;
+  additional_instructions?: string;
   modalities?: Modality[];
   voice?: Voice;
   temperature?: number;
-  max_output_tokens?: number;
+  max_output_tokens?: number | 'inf';
   tools?: ToolsDefinition;
   tool_choice?: ToolChoice;
   output_audio_format?: AudioFormat;

@@ -73,12 +73,12 @@ class RTSession:
         if backend == "azure":
             return RTClient(
                 url=os.getenv("AZURE_OPENAI_ENDPOINT"),
-                token_credential=DefaultAzureCredential(),
-                deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+                key_credential=AzureKeyCredential(os.getenv("AZURE_OPENAI_API_KEY")),
+                azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
             )
         return RTClient(
             key_credential=AzureKeyCredential(os.getenv("OPENAI_API_KEY")),
-            model=os.getenv("OPENAI_MODEL"),
+            model=os.getenv("OPENAI_MODEL", "gpt-4o-realtime-preview"),
         )
 
     async def send(self, message: WSMessage):

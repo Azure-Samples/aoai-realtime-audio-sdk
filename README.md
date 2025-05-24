@@ -95,7 +95,11 @@ One of the key session-wide settings is `turn_detection`, which controls how dat
 - `server_vad` will evaluate incoming user audio (as sent via `input_audio_buffer.append`) using a voice activity detector (VAD) component and automatically use that audio to initiate response generation on applicable conversations when an end of speech is detected. Silence detection for the VAD can be configured when specifying `server_vad` detection mode.
 - `none` will rely on caller-initiated `input_audio_buffer.commit` and `response.create` commands to progress conversations and produce output. This is useful for push-to-talk applications or situations that have external audio flow control (such as caller-side VAD component). Note that these manual signals can be still be used in `server_vad` mode to supplement VAD-initiated response generation.
 
-Transcription of user input audio is opted into via the `input_audio_transcription` property; specifying a transcription model (`whisper-1`) in this configuration will enable the delivery of `conversation.item.audio_transcription.completed` events.
+Transcription of user input audio is opted into via the `input_audio_transcription` property; specifying a transcription model (`whisper-1` or `gpt-4o-mini-transcribe` or `gpt-4o-transcribe` ) in this configuration will enable the delivery of `conversation.item.audio_transcription.completed` events.
+
+Additionally, noise reduction can be configured using the `input_audio_noise_reduction` property. Specify the type of noise reduction using the `type` field:
+- Use `near_field` for close-talking microphones such as headphones.
+- Use `far_field` for far-field microphones such as laptop or conference room microphones.
 
 An example `session.update` that configures several aspects of the session, including tools, follows. Note that all session parameters are optional; not everything needs to be configured!
 
@@ -114,6 +118,7 @@ An example `session.update` that configures several aspects of the session, incl
       "silence_duration_ms": 600,
       "type": "server_vad"
     },
+    "input_audio_noise_reduction": "near_field",
     "tools": [
       {
         "type": "function",

@@ -107,7 +107,9 @@ An example `session.update` that configures several aspects of the session, incl
     "instructions": "Call provided tools if appropriate for the user's input.",
     "input_audio_format": "pcm16",
     "input_audio_transcription": {
-      "model": "whisper-1"
+      "model": "whisper-1",  // We can also choose from "gpt-4o-mini-transcribe" or "gpt-4o-transcribe"
+      "language": "en", // optional language (ISO-639-1 format)
+      "prompt":"words you can expect in the input" // optional
     },
     "turn_detection": {
       "threshold": 0.4,

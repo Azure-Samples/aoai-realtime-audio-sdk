@@ -38,7 +38,9 @@ export type MessageRole = "system" | "assistant" | "user";
 export interface InputAudioTranscription {
   model: "whisper-1";
 }
-
+export interface NoiseReduction{
+  type: "none" | "near_field" | "far_field";
+}
 export interface ClientMessageBase {
   event_id?: string;
 }
@@ -58,6 +60,7 @@ export interface SessionUpdateParams {
   tool_choice?: ToolChoice;
   temperature?: number;
   max_response_output_tokens?: number;
+  input_audio_noise_reduction?: NoiseReduction;
 }
 
 export interface SessionUpdateMessage extends ClientMessageBase {
@@ -182,6 +185,7 @@ export interface ResponseCreateParams {
   tools?: ToolsDefinition;
   tool_choice?: ToolChoice;
   output_audio_format?: AudioFormat;
+  input_audio_noise_reduction?: NoiseReduction;
 }
 
 export interface ResponseCreateMessage extends ClientMessageBase {
@@ -224,6 +228,7 @@ export interface Session {
   tool_choice: ToolChoice;
   temperature: number;
   max_response_output_tokens?: number;
+  input_audio_noise_reduction?: NoiseReduction;
 }
 
 export interface SessionCreatedMessage extends ServerMessageBase {

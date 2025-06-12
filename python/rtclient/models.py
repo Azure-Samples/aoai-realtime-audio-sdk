@@ -257,6 +257,8 @@ class ErrorMessage(ServerMessageBase):
     type: Literal["error"] = "error"
     error: RealtimeError
 
+class UnknownMessage(ServerMessageBase):
+    type: str = "unknown"
 
 class Session(BaseModel):
     id: str
@@ -410,6 +412,13 @@ class ItemDeletedMessage(ServerMessageBase):
     type: Literal["conversation.item.deleted"] = "conversation.item.deleted"
     item_id: str
 
+class ItemInputAudioTranscriptionDeltaMessage(ServerMessageBase):
+    type: Literal["conversation.item.input_audio_transcription.delta"] = (
+        "conversation.item.input_audio_transcription.delta"
+    )
+    item_id: str
+    content_index: int
+    delta: str
 
 class ItemInputAudioTranscriptionCompletedMessage(ServerMessageBase):
     type: Literal["conversation.item.input_audio_transcription.completed"] = (
@@ -626,6 +635,7 @@ UserMessageType = Annotated[
 ]
 ServerMessageType = Annotated[
     Union[
+        UnknownMessage,
         ErrorMessage,
         SessionCreatedMessage,
         SessionUpdatedMessage,
@@ -636,6 +646,7 @@ ServerMessageType = Annotated[
         ItemCreatedMessage,
         ItemTruncatedMessage,
         ItemDeletedMessage,
+        ItemInputAudioTranscriptionDeltaMessage,
         ItemInputAudioTranscriptionCompletedMessage,
         ItemInputAudioTranscriptionFailedMessage,
         ResponseCreatedMessage,
@@ -681,6 +692,8 @@ def create_message_from_dict(data: dict) -> ServerMessageType:
             return ItemTruncatedMessage(**data)
         case "conversation.item.deleted":
             return ItemDeletedMessage(**data)
+        case "conversation.item.input_audio_transcription.delta":
+            return ItemInputAudioTranscriptionDeltaMessage(**data)
         case "conversation.item.input_audio_transcription.completed":
             return ItemInputAudioTranscriptionCompletedMessage(**data)
         case "conversation.item.input_audio_transcription.failed":
@@ -716,4 +729,5 @@ def create_message_from_dict(data: dict) -> ServerMessageType:
         case "rate_limits.updated":
             return RateLimitsUpdatedMessage(**data)
         case _:
-            raise ValueError(f"Unknown event type: {event_type}")
+            print (f"Unknown message type: {event_type}, data: {data}")
+            return UnknownMessage(**data)

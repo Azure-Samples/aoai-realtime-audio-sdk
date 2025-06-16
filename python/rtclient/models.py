@@ -257,8 +257,10 @@ class ErrorMessage(ServerMessageBase):
     type: Literal["error"] = "error"
     error: RealtimeError
 
+
 class UnknownMessage(ServerMessageBase):
     type: str = "unknown"
+
 
 class Session(BaseModel):
     id: str
@@ -412,6 +414,7 @@ class ItemDeletedMessage(ServerMessageBase):
     type: Literal["conversation.item.deleted"] = "conversation.item.deleted"
     item_id: str
 
+
 class ItemInputAudioTranscriptionDeltaMessage(ServerMessageBase):
     type: Literal["conversation.item.input_audio_transcription.delta"] = (
         "conversation.item.input_audio_transcription.delta"
@@ -419,6 +422,7 @@ class ItemInputAudioTranscriptionDeltaMessage(ServerMessageBase):
     item_id: str
     content_index: int
     delta: str
+
 
 class ItemInputAudioTranscriptionCompletedMessage(ServerMessageBase):
     type: Literal["conversation.item.input_audio_transcription.completed"] = (
@@ -729,5 +733,5 @@ def create_message_from_dict(data: dict) -> ServerMessageType:
         case "rate_limits.updated":
             return RateLimitsUpdatedMessage(**data)
         case _:
-            print (f"Unknown message type: {event_type}, data: {data}")
+            print(f"Unknown message type: {event_type}, data: {data}")
             return UnknownMessage(**data)

@@ -36,7 +36,9 @@ export type ToolChoice = "auto" | "none" | "required" | FunctionToolChoice;
 export type MessageRole = "system" | "assistant" | "user";
 
 export interface InputAudioTranscription {
-  model: "whisper-1";
+  model: "whisper-1" | "gpt-4o-mini-transcribe" | "gpt-4o-transcribe";
+  language?: string;
+  prompt?: string;
 }
 
 export interface ClientMessageBase {

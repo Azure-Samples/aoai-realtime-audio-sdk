@@ -17,7 +17,7 @@ from rtclient.util.model_helpers import ModelWithDefaults
 Voice = Literal["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"]
 AudioFormat = Literal["pcm16", "g711-ulaw", "g711-alaw"]
 Modality = Literal["text", "audio"]
-
+NoiseReduction = Literal["none", "near-field", "far_field"]
 
 class NoTurnDetection(ModelWithDefaults):
     type: Literal["none"] = "none"
@@ -71,7 +71,7 @@ class SessionUpdateParams(BaseModel):
     tool_choice: Optional[ToolChoice] = None
     temperature: Optional[Temperature] = None
     max_response_output_tokens: Optional[MaxTokensType] = None
-
+    input_audio_noise_reduction: Optional[NoiseReduction] = None
 
 class SessionUpdateMessage(ClientMessageBase):
     """
@@ -226,7 +226,7 @@ class ResponseCreateParams(BaseModel):
     tools: Optional[ToolsDefinition] = None
     tool_choice: Optional[ToolChoice] = None
     output_audio_format: Optional[AudioFormat] = None
-
+    input_audio_noise_reduction: Optional[NoiseReduction] = None
 
 class ResponseCreateMessage(ClientMessageBase):
     """
@@ -276,7 +276,7 @@ class Session(BaseModel):
     tool_choice: ToolChoice
     temperature: Temperature
     max_response_output_tokens: Optional[MaxTokensType]
-
+    input_audio_noise_reduction: Optional[NoiseReduction] = None
 
 class SessionCreatedMessage(ServerMessageBase):
     type: Literal["session.created"] = "session.created"

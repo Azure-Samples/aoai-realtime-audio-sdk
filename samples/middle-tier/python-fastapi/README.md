@@ -11,7 +11,7 @@ The service establishes a WebSocket server that communicates with clients using 
 - **Simplified Protocol**: Uses a custom, lightweight communication protocol.
 - **Backend Support**: Works with both Azure OpenAI and OpenAI Realtime APIs.
 - **Extendable**: Easily extend the protocol to cover additional functionalities.
-- **Secure Authentication**: For Azure, utilizes token credentials through `DefaultAzureCredential`.
+- **Secure Authentication**: For Azure, uses API key authentication through `AzureKeyCredential`.
 - **Async Implementation**: Leverages FastAPI's async capabilities for efficient WebSocket handling.
 - **Type Safety**: Utilizes Python type hints throughout the codebase.
 
@@ -27,14 +27,15 @@ Set the following environment variables in a `.env` file at the root of the proj
 ### Using Azure OpenAI Backend
 
 - `AZURE_OPENAI_ENDPOINT`: Your Azure OpenAI endpoint URL.
+- `AZURE_OPENAI_API_KEY`: Your Azure OpenAI API key.
 - `AZURE_OPENAI_DEPLOYMENT`: The name of your Azure OpenAI deployment.
 
-Authentication is handled via `DefaultAzureCredential`, supporting environment-based credentials, managed identities, or Azure CLI authentication.
+Authentication is done via API key authentication using `AzureKeyCredential`. This provides a more reliable and straightforward approach.
 
 ### Using OpenAI Realtime API Backend
 
 - `OPENAI_API_KEY`: Your OpenAI API key.
-- `OPENAI_MODEL`: The model to use (e.g., `gpt-3.5-turbo`).
+- `OPENAI_MODEL`: The model to use (e.g., `gpt-4o-realtime-preview`).
 
 ## Setup and Run
 
@@ -113,6 +114,6 @@ class ControlMessage(TypedDict):
 ## Notes
 
 - Ensure that the required environment variables are set correctly for your chosen backend.
-- For Azure backend, authentication relies on DefaultAzureCredential, so configure your environment for token-based authentication.
+- For Azure backend, authentication uses the API key method with `AzureKeyCredential`.
 - Logging is configured using Loguru and can be adjusted through its configuration.
 - The server implements CORS middleware with permissive settings for development. Adjust these settings for production use.

@@ -1,6 +1,0 @@
-.venv
-dist
-__pycache__
-*.egg-info
-build
-.env

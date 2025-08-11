@@ -11,11 +11,7 @@ let audioRecorder: Recorder;
 let audioPlayer: Player;
 
 async function start_realtime(endpoint: string, apiKey: string, deploymentOrModel: string) {
-  if (isAzureOpenAI()) {
     realtimeStreaming = new LowLevelRTClient(new URL(endpoint), { key: apiKey }, { deployment: deploymentOrModel });
-  } else {
-    realtimeStreaming = new LowLevelRTClient({ key: apiKey }, { model: deploymentOrModel });
-  }
 
   try {
     console.log("sending session config");
@@ -168,12 +164,6 @@ const formStopButton =
   document.querySelector<HTMLButtonElement>("#stop-recording")!;
 const formClearAllButton =
   document.querySelector<HTMLButtonElement>("#clear-all")!;
-const formEndpointField =
-  document.querySelector<HTMLInputElement>("#endpoint")!;
-const formAzureToggle =
-  document.querySelector<HTMLInputElement>("#azure-toggle")!;
-const formApiKeyField = document.querySelector<HTMLInputElement>("#api-key")!;
-const formDeploymentOrModelField = document.querySelector<HTMLInputElement>("#deployment-or-model")!;
 const formSessionInstructionsField =
   document.querySelector<HTMLTextAreaElement>("#session-instructions")!;
 const formTemperatureField = document.querySelector<HTMLInputElement>("#temperature")!;
@@ -187,23 +177,10 @@ enum InputState {
   ReadyToStop,
 }
 
-function isAzureOpenAI(): boolean {
-  return formAzureToggle.checked;
-}
-
-function guessIfIsAzureOpenAI() {
-  const endpoint = (formEndpointField.value || "").trim();
-  formAzureToggle.checked = endpoint.indexOf('azure') > -1;
-}
-
 function setFormInputState(state: InputState) {
-  formEndpointField.disabled = state != InputState.ReadyToStart;
-  formApiKeyField.disabled = state != InputState.ReadyToStart;
-  formDeploymentOrModelField.disabled = state != InputState.ReadyToStart;
   formStartButton.disabled = state != InputState.ReadyToStart;
   formStopButton.disabled = state != InputState.ReadyToStop;
   formSessionInstructionsField.disabled = state != InputState.ReadyToStart;
-  formAzureToggle.disabled = state != InputState.ReadyToStart;
 }
 
 function getSystemMessage(): string {
@@ -235,16 +212,17 @@ function appendToTextBlock(text: string) {
 formStartButton.addEventListener("click", async () => {
   setFormInputState(InputState.Working);
 
-  const endpoint = formEndpointField.value.trim();
-  const key = formApiKeyField.value.trim();
-  const deploymentOrModel = formDeploymentOrModelField.value.trim();
+  const endpoint = import.meta.env.VITE_OPEN_AI_ENDPOINT || "";
+  const key = import.meta.env.VITE_OPEN_AI_KEY || "";
+  const deploymentOrModel = import.meta.env.VITE_OPEN_AI_DEPLOYMENT || "";
 
-  if (isAzureOpenAI() && !endpoint && !deploymentOrModel) {
+  console.log("Starting with:", { endpoint, key, deploymentOrModel });
+  if (!endpoint && !deploymentOrModel) {
     alert("Endpoint and Deployment are required for Azure OpenAI");
     return;
   }
 
-  if (!isAzureOpenAI() && !deploymentOrModel) {
+  if (!deploymentOrModel) {
     alert("Model is required for OpenAI");
     return;
   }
@@ -272,8 +250,3 @@ formStopButton.addEventListener("click", async () => {
 formClearAllButton.addEventListener("click", async () => {
   formReceivedTextContainer.innerHTML = "";
 });
-
-formEndpointField.addEventListener('change', async () => {
-  guessIfIsAzureOpenAI();
-});
-guessIfIsAzureOpenAI();

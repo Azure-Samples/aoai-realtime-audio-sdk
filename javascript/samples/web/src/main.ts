@@ -10,12 +10,56 @@ let realtimeStreaming: LowLevelRTClient;
 let audioRecorder: Recorder;
 let audioPlayer: Player;
 
+// Cache for product data loaded from /products.json
+let productData: Record<string, { prompt: string; promptFile?: string }> | null = null;
+const productPromptCache: Record<string, string> = {};
+
+async function ensureProductDataLoaded() {
+  if (productData) return;
+  try {
+    const res = await fetch("/products.json", { cache: "no-cache" });
+    if (res.ok) {
+      productData = await res.json();
+    } else {
+      console.warn("Failed to load products.json:", res.status, res.statusText);
+      productData = {};
+    }
+  } catch (e) {
+    console.warn("Error loading products.json", e);
+    productData = {};
+  }
+}
+
+// Populate the product dropdown from the JSON so adding products is config-only
+async function populateProductDropdown() {
+  await ensureProductDataLoaded();
+  if (!productData) return;
+  const current = formProductSelection.value;
+  formProductSelection.innerHTML = "";
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "";
+  formProductSelection.appendChild(empty);
+  Object.keys(productData)
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      formProductSelection.appendChild(opt);
+    });
+  if (current && productData[current]) {
+    formProductSelection.value = current;
+  }
+}
+
 async function start_realtime(endpoint: string, apiKey: string, deploymentOrModel: string) {
     realtimeStreaming = new LowLevelRTClient(new URL(endpoint), { key: apiKey }, { deployment: deploymentOrModel });
 
   try {
     console.log("sending session config");
-    await realtimeStreaming.send(createConfigMessage());
+    await ensureProductDataLoaded();
+    await realtimeStreaming.send(await createConfigMessage());
   } catch (error) {
     console.log(error);
     makeNewTextBlock("[Connection error]: Unable to send initial config message. Please check your endpoint and authentication details.");
@@ -26,7 +70,33 @@ async function start_realtime(endpoint: string, apiKey: string, deploymentOrMode
   await Promise.all([resetAudio(true), handleRealtimeMessages()]);
 }
 
-function createConfigMessage() : SessionUpdateMessage {
+async function getProductPrompt(product: string): Promise<string | null> {
+  await ensureProductDataLoaded();
+  const meta = productData?.[product];
+  if (!meta) return null;
+
+  // 1) Prefer inline prompt if provided
+  if (meta.prompt && meta.prompt.trim().length > 0) {
+    return meta.prompt.trim();
+  }
+
+  // 2) Otherwise, load from promptFile if provided
+  const file = meta.promptFile;
+  if (!file) return null;
+  if (productPromptCache[file]) return productPromptCache[file];
+
+  try {
+    const res = await fetch(`/product-prompts/${file}`, { cache: "no-cache" });
+    if (!res.ok) return null;
+    const text = (await res.text()).trim();
+    productPromptCache[file] = text;
+    return text;
+  } catch {
+    return null;
+  }
+}
+
+async function createConfigMessage() : Promise<SessionUpdateMessage> {
 
   let configMessage : SessionUpdateMessage = {
     type: "session.update",
@@ -43,9 +113,22 @@ function createConfigMessage() : SessionUpdateMessage {
   const systemMessage = getSystemMessage();
   const temperature = getTemperature();
   const voice = getVoice();
+  const product = getProductTopic();
 
   if (systemMessage) {
     configMessage.session.instructions = systemMessage;
+  }
+
+  if (product) {
+    const productPrompt = await getProductPrompt(product);
+    const productInstruction = productPrompt
+      ? `Product context (${product}): ${productPrompt}`
+      : `The topic is ${product}.`;
+    if (configMessage.session.instructions) {
+      configMessage.session.instructions += " " + productInstruction;
+    } else {
+      configMessage.session.instructions = productInstruction;
+    }
   }
   if (!isNaN(temperature)) {
     configMessage.session.temperature = temperature;
@@ -167,7 +250,8 @@ const formClearAllButton =
 const formSessionInstructionsField =
   document.querySelector<HTMLTextAreaElement>("#session-instructions")!;
 const formTemperatureField = document.querySelector<HTMLInputElement>("#temperature")!;
-const formVoiceSelection = document.querySelector<HTMLInputElement>("#voice")!;
+const formVoiceSelection = document.querySelector<HTMLSelectElement>("#voice")!;
+const formProductSelection = document.querySelector<HTMLSelectElement>("#product-topic")!;
 
 let latestInputSpeechBlock: Element;
 
@@ -181,6 +265,7 @@ function setFormInputState(state: InputState) {
   formStartButton.disabled = state != InputState.ReadyToStart;
   formStopButton.disabled = state != InputState.ReadyToStop;
   formSessionInstructionsField.disabled = state != InputState.ReadyToStart;
+  formProductSelection.disabled = state != InputState.ReadyToStart;
 }
 
 function getSystemMessage(): string {
@@ -193,6 +278,10 @@ function getTemperature(): number {
 
 function getVoice(): Voice {
   return formVoiceSelection.value as Voice;
+}
+
+function getProductTopic(): string {
+  return formProductSelection.value || "";
 }
 
 function makeNewTextBlock(text: string = "") {
@@ -208,6 +297,9 @@ function appendToTextBlock(text: string) {
   }
   textElements[textElements.length - 1].textContent += text;
 }
+
+// Populate product dropdown on load
+void populateProductDropdown();
 
 formStartButton.addEventListener("click", async () => {
   setFormInputState(InputState.Working);

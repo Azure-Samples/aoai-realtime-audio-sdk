@@ -6,6 +6,7 @@ export {
   AssistantMessageItem,
   AudioFormat,
   ClientMessageBase,
+  ConnectionClosedMessage,
   ErrorMessage,
   FunctionCallItem,
   FunctionCallOutputItem,

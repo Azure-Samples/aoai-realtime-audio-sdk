@@ -9,6 +9,7 @@ import {
   ItemInputAudioTranscriptionFailedMessage,
   MessageRole,
   RealtimeError,
+  ConnectionClosedMessage,
   Response,
   ResponseAudioDeltaMessage,
   ResponseAudioDoneMessage,
@@ -85,6 +86,12 @@ export class LowLevelRTClient {
         }
       },
       serialize: (message: UserMessageType) => JSON.stringify(message),
+      createClosedMessage: (_event): ServerMessageType => ({
+        type: "connection.closed",
+        event_id: generateId("evt", 32),
+        code: _event.code,
+        reason: _event.reason
+      } as ConnectionClosedMessage),
     };
 
     return new WebSocketClient<UserMessageType, ServerMessageType>(

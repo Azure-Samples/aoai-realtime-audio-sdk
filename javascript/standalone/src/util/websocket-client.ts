@@ -40,6 +40,8 @@ export type SerializeMessage<T> = (
 export interface MessageProtocolHandler<U, D> {
   validate: ValidateProtocolMessage<D>;
   serialize: SerializeMessage<U>;
+  // Optional: create a synthetic protocol message when the websocket closes
+  createClosedMessage?: (event: CloseEvent) => D;
 }
 
 export class WebSocketClient<U, D> implements AsyncIterable<D> {
@@ -50,6 +52,7 @@ export class WebSocketClient<U, D> implements AsyncIterable<D> {
   private messageQueue: D[] = [];
   private validate: ValidateProtocolMessage<D>;
   private serialize: SerializeMessage<U>;
+  private createClosedMessage?: (event: CloseEvent) => D;
 
   private receiverQueue: [ResolveFn<D>, RejectFn<Error>][] = [];
   private done: boolean = false;
@@ -60,6 +63,7 @@ export class WebSocketClient<U, D> implements AsyncIterable<D> {
   ) {
     this.validate = handler.validate;
     this.serialize = handler.serialize;
+  this.createClosedMessage = handler.createClosedMessage;
     this.connectedPromise = new Promise(async (resolve, reject) => {
       this.socket = await getWebsocket(settings);
       this.socket.onopen = () => {
@@ -88,7 +92,17 @@ export class WebSocketClient<U, D> implements AsyncIterable<D> {
   private getClosedHandler(
     closeResolve: (_: void) => void,
   ): (_: CloseEvent) => void {
-    return (_: CloseEvent) => {
+    return (event: CloseEvent) => {
+      // If provided, enqueue a synthetic closed message for consumers
+      if (this.createClosedMessage) {
+        const closedMsg = this.createClosedMessage(event);
+        if (this.receiverQueue.length > 0) {
+          const [resolve, _] = this.receiverQueue.shift()!;
+          resolve({ value: closedMsg, done: false });
+        } else {
+          this.messageQueue.push(closedMsg);
+        }
+      }
       this.done = true;
       while (this.receiverQueue.length > 0) {
         const [resolve, reject] = this.receiverQueue.shift()!;
@@ -126,11 +140,11 @@ export class WebSocketClient<U, D> implements AsyncIterable<D> {
       next: (): Promise<IteratorResult<D>> => {
         if (this.error) {
           return Promise.reject(this.error);
-        } else if (this.done) {
-          return Promise.resolve({ value: undefined, done: true });
         } else if (this.messageQueue.length > 0) {
           const message = this.messageQueue.shift()!;
           return Promise.resolve({ value: message, done: false });
+        } else if (this.done) {
+          return Promise.resolve({ value: undefined, done: true });
         } else {
           return new Promise((resolve, reject) => {
             this.receiverQueue.push([resolve, reject]);

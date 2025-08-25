@@ -246,6 +246,10 @@ describe("isServerMessageType", () => {
           },
         ],
       },
+      {
+        type: "connection.closed",
+        event_id: "event32",
+      },
     ];
 
     validMessages.forEach((message) => {

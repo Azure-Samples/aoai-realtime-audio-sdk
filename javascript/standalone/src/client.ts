@@ -938,6 +938,13 @@ export class RTClient {
     return undefined;
   }
 
+  async cancelResponse(): Promise<RTResponse | undefined> {
+    await this.init();
+    await this.client.send({ type: "response.cancel" });
+    // Apparently we do not get a response.cancelled message back...
+    return undefined;
+  }
+
   async *events(): AsyncIterable<RTInputAudioItem | RTResponse> {
     // TODO: Add the updated quota message as a control type of event.
     try {

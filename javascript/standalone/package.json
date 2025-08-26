@@ -1,6 +1,6 @@
 {
   "name": "rt-client",
-  "version": "0.5.3",
+  "version": "0.5.5",
   "scripts": {
     "test": "vitest",
     "build": "rollup -c",

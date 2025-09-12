@@ -45,6 +45,7 @@ MessageRole = Literal["system", "assistant", "user"]
 
 class InputAudioTranscription(BaseModel):
     model: Literal["whisper-1"]
+    language: Optional[str]
 
 
 class ClientMessageBase(ModelWithDefaults):

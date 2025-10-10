@@ -1,7 +1,7 @@
 $Owner = "Azure-Samples"
 $Repo = "aoai-realtime-audio-sdk"
 $Filter = "-py3-none-any.whl"
-$Release = "py/v0.5.1"
+$Release = "py/v0.5.4"
 $OutputDir = "."
 
 $apiUrl = "https://api.github.com/repos/$Owner/$Repo/releases/tags/$Release"

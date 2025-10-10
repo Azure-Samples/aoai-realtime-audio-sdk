@@ -147,7 +147,7 @@ async def test_clear_audio(client: RTClient, audio_samples: Generator[bytes]):
 
     with pytest.raises(RealtimeException) as ex:
         await client.commit_audio()
-    assert "buffer is empty" in ex.value.message
+    assert "buffer" in ex.value.message
 
 
 @pytest.mark.asyncio

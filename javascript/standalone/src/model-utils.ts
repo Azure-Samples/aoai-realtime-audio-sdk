@@ -12,6 +12,7 @@ export const isServerMessageType = (
   isRealtimeEvent(message) &&
   [
     "error",
+  "connection.closed",
     "session.created",
     "session.updated",
     "input_audio_buffer.committed",

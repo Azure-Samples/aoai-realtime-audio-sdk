@@ -14,7 +14,7 @@ from pydantic import (
 
 from rtclient.util.model_helpers import ModelWithDefaults
 
-Voice = Literal["alloy", "shimmer", "echo"]
+Voice = Literal["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"]
 AudioFormat = Literal["pcm16", "g711-ulaw", "g711-alaw"]
 Modality = Literal["text", "audio"]
 
@@ -258,6 +258,10 @@ class ErrorMessage(ServerMessageBase):
     error: RealtimeError
 
 
+class UnknownMessage(ServerMessageBase):
+    type: str = "unknown"
+
+
 class Session(BaseModel):
     id: str
     model: str
@@ -364,17 +368,18 @@ ResponseItemContentPart = Annotated[
 
 class ResponseItemBase(BaseModel):
     id: Optional[str]
-    status: ResponseItemStatus
 
 
 class ResponseMessageItem(ResponseItemBase):
     type: MessageItemType = "message"
+    status: ResponseItemStatus
     role: MessageRole
     content: list[ResponseItemContentPart]
 
 
 class ResponseFunctionCallItem(ResponseItemBase):
     type: Literal["function_call"] = "function_call"
+    status: ResponseItemStatus
     name: str
     call_id: str
     arguments: str
@@ -408,6 +413,15 @@ class ItemTruncatedMessage(ServerMessageBase):
 class ItemDeletedMessage(ServerMessageBase):
     type: Literal["conversation.item.deleted"] = "conversation.item.deleted"
     item_id: str
+
+
+class ItemInputAudioTranscriptionDeltaMessage(ServerMessageBase):
+    type: Literal["conversation.item.input_audio_transcription.delta"] = (
+        "conversation.item.input_audio_transcription.delta"
+    )
+    item_id: str
+    content_index: int
+    delta: str
 
 
 class ItemInputAudioTranscriptionCompletedMessage(ServerMessageBase):
@@ -452,10 +466,23 @@ ResponseStatusDetails = Annotated[
 ]
 
 
+class InputTokenDetails(BaseModel):
+    cached_tokens: int
+    text_tokens: int
+    audio_tokens: int
+
+
+class OutputTokenDetails(BaseModel):
+    text_tokens: int
+    audio_tokens: int
+
+
 class Usage(BaseModel):
     total_tokens: int
     input_tokens: int
     output_tokens: int
+    input_token_details: InputTokenDetails
+    output_token_details: OutputTokenDetails
 
 
 class Response(BaseModel):
@@ -612,6 +639,7 @@ UserMessageType = Annotated[
 ]
 ServerMessageType = Annotated[
     Union[
+        UnknownMessage,
         ErrorMessage,
         SessionCreatedMessage,
         SessionUpdatedMessage,
@@ -622,6 +650,7 @@ ServerMessageType = Annotated[
         ItemCreatedMessage,
         ItemTruncatedMessage,
         ItemDeletedMessage,
+        ItemInputAudioTranscriptionDeltaMessage,
         ItemInputAudioTranscriptionCompletedMessage,
         ItemInputAudioTranscriptionFailedMessage,
         ResponseCreatedMessage,
@@ -667,6 +696,8 @@ def create_message_from_dict(data: dict) -> ServerMessageType:
             return ItemTruncatedMessage(**data)
         case "conversation.item.deleted":
             return ItemDeletedMessage(**data)
+        case "conversation.item.input_audio_transcription.delta":
+            return ItemInputAudioTranscriptionDeltaMessage(**data)
         case "conversation.item.input_audio_transcription.completed":
             return ItemInputAudioTranscriptionCompletedMessage(**data)
         case "conversation.item.input_audio_transcription.failed":
@@ -702,4 +733,5 @@ def create_message_from_dict(data: dict) -> ServerMessageType:
         case "rate_limits.updated":
             return RateLimitsUpdatedMessage(**data)
         case _:
-            raise ValueError(f"Unknown event type: {event_type}")
+            print(f"Unknown message type: {event_type}, data: {data}")
+            return UnknownMessage(**data)

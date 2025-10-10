@@ -8,7 +8,7 @@ import nodeResolve from "@rollup/plugin-node-resolve";
 import alias from "@rollup/plugin-alias";
 import replace from "@rollup/plugin-replace";
 
-import pkg from "./package.json" assert { type: "json" };
+import pkg from "./package.json" with { type: "json" };
 
 export default [
   {
@@ -38,7 +38,7 @@ export default [
       commonjs(),
       typescript({
         downlevelIteration: true,
-        exclude: ["**/*.spec.ts", "**/*.test.ts"],
+        exclude: ["vitest.workspace.mts", "test/**/*.ts"],
       }),
     ],
   },
@@ -72,7 +72,7 @@ export default [
       }),
       typescript({
         downlevelIteration: true,
-        exclude: ["**/*.spec.ts", "**/*.test.ts"],
+        exclude: ["vitest.workspace.mts", "test/**/*.ts"],
       }),
       nodeResolve({
         browser: true,

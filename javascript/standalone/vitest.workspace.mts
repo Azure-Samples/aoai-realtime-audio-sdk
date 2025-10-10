@@ -11,6 +11,7 @@ const environmentVariables = {
   AZURE_OPENAI_DEPLOYMENT: process.env.AZURE_OPENAI_DEPLOYMENT,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_MODEL: process.env.OPENAI_MODEL,
+  PROJECT_DIR: __dirname,
 };
 
 export default defineWorkspace([
@@ -23,6 +24,7 @@ export default defineWorkspace([
       alias: {
         "./websocket": "./websocket-browser",
         "./util/connection-settings": "./util/connection-settings-browser",
+        "./file-utils": "./file-utils-browser",
       },
       browser: {
         screenshotFailures: false,
@@ -37,6 +39,7 @@ export default defineWorkspace([
   {
     test: {
       name: "node",
+      pool: "forks",
       include: ["**/*.{spec,node.spec}.ts"],
       exclude: ["**/*.browser.spec.ts"],
       environment: "node",

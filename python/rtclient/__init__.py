@@ -36,6 +36,7 @@ from rtclient.models import (
     ItemDeletedMessage,
     ItemDeleteMessage,
     ItemInputAudioTranscriptionCompletedMessage,
+    ItemInputAudioTranscriptionDeltaMessage,
     ItemInputAudioTranscriptionFailedMessage,
     ItemParamStatus,
     ItemTruncatedMessage,
@@ -97,6 +98,7 @@ from rtclient.models import (
     ToolChoice,
     ToolsDefinition,
     TurnDetection,
+    UnknownMessage,
     Usage,
     UserContentPart,
     UserMessageItem,
@@ -132,51 +134,6 @@ class RealtimeException(Exception):
     @property
     def event_id(self):
         return self.error.event_id
-
-
-class RTInputItem:
-    def __init__(
-        self,
-        id: str,
-        audio_start_ms: int,
-        has_transcription: bool,
-        receive: Callable[[], Awaitable[Optional[ServerMessageType]]],
-    ):
-        self.id = id
-        self._has_transcription = has_transcription
-        self._receive = receive
-        self.previous_id: Optional[str] = None
-        self.audio_start_ms = audio_start_ms
-        self.audio_end_ms: Optional[int] = None
-        self.transcript: Optional[str] = None
-        self.commited: bool = False
-        self.error: Optional[RealtimeError] = None
-
-    def __await__(self):
-        async def resolve():
-            while True:
-                server_message = await self._receive()
-                if server_message is None:
-                    break
-                match server_message.type:
-                    case "input_audio_buffer.speech_stopped":
-                        self.audio_end_ms = server_message.audio_end_ms
-                    case "conversation.item.created":
-                        self.previous_id = server_message.previous_item_id
-                        if not self._has_transcription:
-                            return
-                    case "conversation.item.input_audio_transcription.completed":
-                        self.transcript = server_message.transcript
-                        return
-                    case "conversation.item.input_audio_transcription.failed":
-                        self.error = server_message.error
-                        return
-                    case "input_audio_buffer.committed":
-                        self.commited = True
-                    case _:
-                        pass
-
-        return resolve().__await__()
 
 
 class RTInputAudioItem:
@@ -570,7 +527,7 @@ class RTResponse:
         return self._response.output
 
     @property
-    def usage(self) -> Usage:
+    def usage(self) -> Optional[Usage]:
         return self._response.usage
 
     async def cancel(self) -> None:
@@ -585,7 +542,10 @@ class RTResponse:
     async def __anext__(self):
         if self._done:
             raise StopAsyncIteration
-        message = await self.__queue.receive(lambda m: m.type in ["response.done", "response.output_item.added"])
+        message = await self.__queue.receive(
+            lambda m: (m.type == "response.done" and m.response.id == self.id)
+            or (m.type == "response.output_item.added" and m.response_id == self.id)
+        )
         if message is None:
             raise StopAsyncIteration
         if message.type == "error":
@@ -826,6 +786,7 @@ __all__ = [
     "ResponseCancelMessage",
     "RealtimeError",
     "ServerMessageBase",
+    "UnknownMessage",
     "ErrorMessage",
     "Session",
     "SessionCreatedMessage",
@@ -848,6 +809,7 @@ __all__ = [
     "ItemCreatedMessage",
     "ItemTruncatedMessage",
     "ItemDeletedMessage",
+    "ItemInputAudioTranscriptionDeltaMessage",
     "ItemInputAudioTranscriptionCompletedMessage",
     "ItemInputAudioTranscriptionFailedMessage",
     "ResponseStatus",

@@ -400,3 +400,9 @@ FodyWeavers.xsd
 # Binary archives
 *.tgz
 *.zip
+
+# MacOS
+.DS_Store
+
+# Env files
+.env

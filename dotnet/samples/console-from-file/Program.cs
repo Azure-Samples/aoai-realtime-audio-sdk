@@ -43,7 +43,7 @@ public class Program
 
         string inputAudioPath = FindFile("audio_weather_alaw.wav");
         using Stream inputAudioStream = File.OpenRead(inputAudioPath);
-        _ = session.SendAudioAsync(inputAudioStream);
+        _ = session.SendInputAudioAsync(inputAudioStream);
 
         string outputAudioPath = "output.raw";
         using Stream outputAudioStream = File.OpenWrite(outputAudioPath);
@@ -59,18 +59,18 @@ public class Program
             if (update is ConversationInputSpeechStartedUpdate speechStartedUpdate)
             {
                 Console.WriteLine(
-                    $"  -- Voice activity detection started at {speechStartedUpdate.AudioStartMs} ms");
+                    $"  -- Voice activity detection started at {speechStartedUpdate.AudioStartTime}");
             }
 
             if (update is ConversationInputSpeechFinishedUpdate speechFinishedUpdate)
             {
                 Console.WriteLine(
-                    $"  -- Voice activity detection ended at {speechFinishedUpdate.AudioEndMs} ms");
+                    $"  -- Voice activity detection ended at {speechFinishedUpdate.AudioEndTime}");
             }
 
-            // Item started updates notify that the model generation process will insert a new item into
+            // Item streaming started updates notify that the model generation process will insert a new item into
             // the conversation and begin streaming its content via content updates.
-            if (update is ConversationItemStartedUpdate itemStartedUpdate)
+            if (update is ConversationItemStreamingStartedUpdate itemStartedUpdate)
             {
                 Console.WriteLine($"  -- Begin streaming of new item");
                 if (!string.IsNullOrEmpty(itemStartedUpdate.FunctionName))
@@ -79,29 +79,19 @@ public class Program
                 }
             }
 
-            // Audio transcript delta updates contain the incremental text matching the generated
-            // output audio.
-            if (update is ConversationOutputTranscriptionDeltaUpdate outputTranscriptDeltaUpdate)
+            // Item streaming delta updates provide a combined view into incremental item data including output
+            // the audio response transcript, function arguments, and audio data.
+            if (update is ConversationItemStreamingPartDeltaUpdate deltaUpdate)
             {
-                Console.Write(outputTranscriptDeltaUpdate.Delta);
-            }
-
-            // Audio delta updates contain the incremental binary audio data of the generated output
-            // audio, matching the output audio format configured for the session.
-            if (update is ConversationAudioDeltaUpdate audioDeltaUpdate)
-            {
-                outputAudioStream.Write(audioDeltaUpdate.Delta?.ToArray() ?? []);
-            }
-
-            if (update is ConversationFunctionCallArgumentsDeltaUpdate argumentsDeltaUpdate)
-            {
-                Console.Write(argumentsDeltaUpdate.Delta);
+                Console.Write(deltaUpdate.AudioTranscript);
+                Console.Write(deltaUpdate.FunctionArguments);
+                outputAudioStream.Write(deltaUpdate.AudioBytes);
             }
 
             // Item finished updates arrive when all streamed data for an item has arrived and the
             // accumulated results are available. In the case of function calls, this is the point
             // where all arguments are expected to be present.
-            if (update is ConversationItemFinishedUpdate itemFinishedUpdate)
+            if (update is ConversationItemStreamingFinishedUpdate itemFinishedUpdate)
             {
                 Console.WriteLine();
                 Console.WriteLine($"  -- Item streaming finished, response_id={itemFinishedUpdate.ResponseId}");
@@ -119,7 +109,7 @@ public class Program
                     Console.Write($"    + [{itemFinishedUpdate.MessageRole}]: ");
                     foreach (ConversationContentPart contentPart in itemFinishedUpdate.MessageContentParts)
                     {
-                        Console.Write(contentPart.AudioTranscriptValue);
+                        Console.Write(contentPart.AudioTranscript);
                     }
                     Console.WriteLine();
                 }
@@ -142,7 +132,7 @@ public class Program
                 if (turnFinishedUpdate.CreatedItems.Any(item => item.FunctionName?.Length > 0))
                 {
                     Console.WriteLine($"  -- Ending client turn for pending tool responses");
-                    await session.StartResponseTurnAsync();
+                    await session.StartResponseAsync();
                 }
                 else
                 {
@@ -153,7 +143,7 @@ public class Program
             if (update is ConversationErrorUpdate errorUpdate)
             {
                 Console.WriteLine();
-                Console.WriteLine($"ERROR: {errorUpdate.ErrorMessage}");
+                Console.WriteLine($"ERROR: {errorUpdate.Message}");
                 break;
             }
         }

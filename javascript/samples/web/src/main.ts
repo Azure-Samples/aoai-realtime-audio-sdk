@@ -4,7 +4,7 @@
 import { Player } from "./player.ts";
 import { Recorder } from "./recorder.ts";
 import "./style.css";
-import { LowLevelRTClient, SessionUpdateMessage } from "rt-client";
+import { LowLevelRTClient, SessionUpdateMessage, Voice } from "rt-client";
 
 let realtimeStreaming: LowLevelRTClient;
 let audioRecorder: Recorder;
@@ -166,6 +166,8 @@ const formStartButton =
   document.querySelector<HTMLButtonElement>("#start-recording")!;
 const formStopButton =
   document.querySelector<HTMLButtonElement>("#stop-recording")!;
+const formClearAllButton =
+  document.querySelector<HTMLButtonElement>("#clear-all")!;
 const formEndpointField =
   document.querySelector<HTMLInputElement>("#endpoint")!;
 const formAzureToggle =
@@ -212,8 +214,8 @@ function getTemperature(): number {
   return parseFloat(formTemperatureField.value);
 }
 
-function getVoice(): "alloy" | "echo" | "shimmer" {
-  return formVoiceSelection.value as "alloy" | "echo" | "shimmer";
+function getVoice(): Voice {
+  return formVoiceSelection.value as Voice;
 }
 
 function makeNewTextBlock(text: string = "") {
@@ -265,6 +267,10 @@ formStopButton.addEventListener("click", async () => {
   resetAudio(false);
   realtimeStreaming.close();
   setFormInputState(InputState.ReadyToStart);
+});
+
+formClearAllButton.addEventListener("click", async () => {
+  formReceivedTextContainer.innerHTML = "";
 });
 
 formEndpointField.addEventListener('change', async () => {

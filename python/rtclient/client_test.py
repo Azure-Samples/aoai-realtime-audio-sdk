@@ -108,6 +108,19 @@ async def client(request: pytest.FixtureRequest) -> AsyncGenerator[RTClient, Non
 
 
 @pytest.mark.asyncio
+async def test_configure_with_idle_timeout(client: RTClient):
+    """Test configuring session with idle_timeout parameter."""
+    original_session = client.session
+    assert original_session is not None
+    updated_session = await client.configure(
+        instructions="You are a helpful assistant.",
+        idle_timeout=300  # 5 minutes
+    )
+    assert updated_session is not None
+    assert updated_session.idle_timeout == 300
+
+
+@pytest.mark.asyncio
 async def test_configure(client: RTClient):
     original_session = client.session
     assert original_session is not None

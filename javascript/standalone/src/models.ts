@@ -1,15 +1,58 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+export type AzureStandardVoice = {
+  type: "azure-standard";
+  name: string;
+  temperature?: number;
+  custom_lexicon_url?: string;
+  prefer_locales?: string[];
+  pitch?: string;
+  rate?: string;
+  volume?: string;
+  style?: string;
+}
+export type AzureCustomVoice = {
+  type: "azure-custom";
+  name: string;
+  endpoint_id: string;
+  temperature?: number;
+  custom_lexicon_url?: string;
+  prefer_locales?: string[];
+  pitch?: string;
+  rate?: string;
+  volume?: string;
+  style?: string;
+}
+export type AzurePersonalVoice = {
+  type: "azure-personal";
+  name: string;
+  model: "DragonLatestNeural" | "DragonHDOmniLatestNeural" | string;
+  temperature?: number;
+  custom_lexicon_url?: string;
+  prefer_locales?: string[];
+  pitch?: string;
+  rate?: string;
+  volume?: string;
+  style?: string;
+}
 export type Voice =
-  | "alloy"
-  | "ash"
-  | "ballad"
-  | "coral"
-  | "echo"
-  | "sage"
-  | "shimmer"
-  | "verse";
+  | 'alloy'
+  | 'ash'
+  | 'ballad'
+  | 'coral'
+  | 'echo'
+  | 'fable'
+  | 'onyx'
+  | 'nova'
+  | 'sage'
+  | 'shimmer'
+  | 'verse'
+  | 'marin'
+  | 'cedar'
+  | AzureStandardVoice
+  | AzureCustomVoice
+  | AzurePersonalVoice;
 export type AudioFormat = "pcm16" | "g711-ulaw" | "g711-alaw";
 export type Modality = "text" | "audio";
 
@@ -22,9 +65,26 @@ export interface ServerVAD {
   threshold?: number;
   prefix_padding_ms?: number;
   silence_duration_ms?: number;
+  end_of_utterance_detection?: EOUDetection;
 }
 
-export type TurnDetection = ServerVAD | null;
+export interface AzureSemanticVAD {
+  type: "azure_semantic_vad";
+  threshold?: number;
+  prefix_padding_ms?: number;
+  silence_duration_ms?: number;
+  remove_filler_words?: boolean;
+  end_of_utterance_detection?: EOUDetection;
+}
+
+export type TurnDetection = ServerVAD | AzureSemanticVAD | null;
+
+export interface AzureEOU {
+  model: "semantic_detection_v1";
+  threshold?: number;
+}
+
+export type EOUDetection = AzureEOU | null;
 
 export interface FunctionToolChoice {
   type: "function";
@@ -36,7 +96,37 @@ export type ToolChoice = "auto" | "none" | "required" | FunctionToolChoice;
 export type MessageRole = "system" | "assistant" | "user";
 
 export interface InputAudioTranscription {
-  model: "whisper-1";
+  model: "whisper-1" | "gpt-4o-transcribe" | "gpt-4o-mini-transcribe" | "azure-fast-transcription" | "azure-speech";
+  language?: string;
+  prompt?: string;
+  phrase_list?: string[];
+  custom_speech?: Record<string, string>;
+}
+
+export interface AvatarConfigVideoParams {
+  bitrate?: number;
+  codec?: string;
+  crop?: {
+    bottom_right: [number, number];
+    top_left: [number, number];
+  };
+  resolution?: {
+    width: number;
+    height: number;
+  };
+  background?: {
+    color?: string;
+    image_url?: URL;
+  };
+}
+
+export interface AvatarConfig {
+  ice_servers?: RTCIceServer[];
+  character: string;
+  style?: string;
+  customized?: boolean;
+  image_prompt_url?: URL;
+  video?: AvatarConfigVideoParams;
 }
 
 export interface ClientMessageBase {
@@ -44,6 +134,23 @@ export interface ClientMessageBase {
 }
 
 export type ToolsDefinition = Record<string, any>[];
+
+export interface SystemToolDefinition {
+  name: string;
+  description?: string;
+}
+
+export interface ServerEchoCancellation {
+  type: "server_echo_cancellation";
+}
+
+export interface AzureDeepNoiseSuppression {
+  type: "azure_deep_noise_suppression";
+}
+
+export type InputAudioEchoCancellation = ServerEchoCancellation | null;
+
+export type InputAudioNoiseReduction = AzureDeepNoiseSuppression | null;
 
 export interface SessionUpdateParams {
   model?: string;
@@ -55,9 +162,13 @@ export interface SessionUpdateParams {
   input_audio_transcription?: InputAudioTranscription | null;
   turn_detection?: TurnDetection;
   tools?: ToolsDefinition;
+  system_tools?: SystemToolDefinition[];
   tool_choice?: ToolChoice;
   temperature?: number;
   max_response_output_tokens?: number;
+  avatar?: AvatarConfig;
+  input_audio_noise_reduction?: InputAudioNoiseReduction;
+  input_audio_echo_cancellation?: InputAudioEchoCancellation;
 }
 
 export interface SessionUpdateMessage extends ClientMessageBase {
@@ -170,15 +281,15 @@ export interface ItemDeleteMessage extends ClientMessageBase {
 }
 
 export interface ResponseCreateParams {
-  commit?: boolean;
-  cancel_previous?: boolean;
+  conversation?: 'auto' | 'none';
   append_input_items?: Item[];
   input_items?: Item[];
   instructions?: string;
+  additional_instructions?: string;
   modalities?: Modality[];
   voice?: Voice;
   temperature?: number;
-  max_output_tokens?: number;
+  max_output_tokens?: number | 'inf';
   tools?: ToolsDefinition;
   tool_choice?: ToolChoice;
   output_audio_format?: AudioFormat;
@@ -191,6 +302,11 @@ export interface ResponseCreateMessage extends ClientMessageBase {
 
 export interface ResponseCancelMessage extends ClientMessageBase {
   type: "response.cancel";
+}
+
+export interface SessionAvatarConnectMessage extends ClientMessageBase {
+  type: "session.avatar.connect";
+  client_sdp: string;
 }
 
 export interface RealtimeError {
@@ -227,9 +343,13 @@ export interface Session {
   input_audio_transcription?: InputAudioTranscription;
   turn_detection: TurnDetection;
   tools: ToolsDefinition;
+  system_tools?: SystemToolDefinition[];
   tool_choice: ToolChoice;
   temperature: number;
   max_response_output_tokens?: number;
+  avatar?: AvatarConfig;
+  input_audio_noise_reduction?: InputAudioNoiseReduction;
+  input_audio_echo_cancellation?: InputAudioEchoCancellation;
 }
 
 export interface SessionCreatedMessage extends ServerMessageBase {
@@ -540,6 +660,20 @@ export interface RateLimitsUpdatedMessage extends ServerMessageBase {
   rate_limits: RateLimits[];
 }
 
+export interface SessionAvatarConnectingMessage extends ServerMessageBase {
+  type: "session.avatar.connecting";
+  server_sdp: string;
+}
+
+export interface ResponseBlendShapeMessage extends ServerMessageBase {
+  type: "response.animation.blendshapes";
+  response_id: string;
+  item_id: string;
+  output_index: number;
+  content_index: number;
+  blendshapes: string;
+}
+
 export type UserMessageType =
   | SessionUpdateMessage
   | InputAudioBufferAppendMessage
@@ -549,7 +683,8 @@ export type UserMessageType =
   | ItemTruncateMessage
   | ItemDeleteMessage
   | ResponseCreateMessage
-  | ResponseCancelMessage;
+  | ResponseCancelMessage
+  | SessionAvatarConnectMessage;
 
 export type ServerMessageType =
   | ErrorMessage
@@ -577,6 +712,8 @@ export type ServerMessageType =
   | ResponseAudioTranscriptDoneMessage
   | ResponseAudioDeltaMessage
   | ResponseAudioDoneMessage
+  | ResponseBlendShapeMessage
   | ResponseFunctionCallArgumentsDeltaMessage
   | ResponseFunctionCallArgumentsDoneMessage
-  | RateLimitsUpdatedMessage;
+  | RateLimitsUpdatedMessage
+  | SessionAvatarConnectingMessage;

@@ -17,6 +17,7 @@ import {
   ResponseAudioTranscriptDoneMessage,
   ResponseContentPartAddedMessage,
   ResponseContentPartDoneMessage,
+  ResponseCreateParams,
   ResponseFunctionCallItem,
   ResponseItem,
   ResponseItemAudioContentPart,
@@ -47,12 +48,15 @@ import {
   ConnectionSettings,
   isRTAzureOpenAIOptions,
   isRTOpenAIOptions,
+  isRTVoiceAgentOptions,
   RTAzureOpenAIOptions,
   RTOpenAIOptions,
+  RTVoiceAgentOptions,
 } from "./util/interfaces";
 import {
   azureOpenAISettings,
   openAISettings,
+  voiceLiveSettings,
 } from "./util/connection-settings";
 import { MessageQueueWithError, SharedEndQueue } from "./util/message_queue";
 import { generateId } from "./util/crypto";
@@ -104,12 +108,12 @@ export class LowLevelRTClient {
   constructor(
     uri: URL,
     credential: KeyCredential | TokenCredential,
-    options: RTAzureOpenAIOptions,
+    options: RTAzureOpenAIOptions | RTVoiceAgentOptions,
   );
   constructor(
     uriOrCredential: URL | KeyCredential,
-    credentialOrOptions: KeyCredential | TokenCredential | RTOpenAIOptions,
-    options?: RTAzureOpenAIOptions,
+    credentialOrOptions: KeyCredential | TokenCredential | RTOpenAIOptions | RTVoiceAgentOptions,
+    options?: RTAzureOpenAIOptions | RTVoiceAgentOptions,
   ) {
     const settings = (() => {
       if (
@@ -125,6 +129,15 @@ export class LowLevelRTClient {
           uriOrCredential as URL,
           credentialOrOptions,
           options,
+        );
+      } else if (
+        isCredential(credentialOrOptions) &&
+        isRTVoiceAgentOptions(options)
+      ) {
+        return voiceLiveSettings(
+          uriOrCredential as URL,
+          credentialOrOptions,
+          options as RTVoiceAgentOptions,
         );
       } else {
         throw new Error(
@@ -184,7 +197,7 @@ class RTInputAudioItem {
     public audioStartMillis: Optional<number>,
     private hasTranscription: boolean,
     private queue: MessageQueueWithError<ServerMessageType>,
-  ) {}
+  ) { }
 
   static create(
     id: string,
@@ -459,7 +472,7 @@ class RTMessageItem implements AsyncIterable<RTMessageContent> {
     private item: ResponseMessageItem,
     public previousItemId: Optional<string>,
     private queue: MessageQueueWithError<ServerMessageType>,
-  ) {}
+  ) { }
 
   static create(
     responseId: string,
@@ -527,7 +540,7 @@ class RTFunctionCallItem implements AsyncIterable<string> {
     private item: ResponseFunctionCallItem,
     public previousItemId: Optional<string>,
     private queue: MessageQueueWithError<ServerMessageType>,
-  ) {}
+  ) { }
 
   static create(
     responseId: string,
@@ -625,7 +638,7 @@ class RTResponse implements AsyncIterable<RTOutputItem> {
     private response: Response,
     private queue: MessageQueueWithError<ServerMessageType>,
     private client: LowLevelRTClient,
-  ) {}
+  ) { }
 
   static create(
     response: Response,
@@ -742,12 +755,12 @@ export class RTClient {
   constructor(
     uri: URL,
     credential: KeyCredential | TokenCredential,
-    options: RTAzureOpenAIOptions,
+    options: RTAzureOpenAIOptions | RTVoiceAgentOptions,
   );
   constructor(
     uriOrCredential: URL | KeyCredential,
     credentialOrOptions: KeyCredential | TokenCredential | RTOpenAIOptions,
-    options?: RTAzureOpenAIOptions,
+    options?: RTAzureOpenAIOptions | RTVoiceAgentOptions,
   ) {
     this.client = (() => {
       if (isKeyCredential(uriOrCredential)) {
@@ -759,7 +772,7 @@ export class RTClient {
         return new LowLevelRTClient(
           uriOrCredential as URL,
           credentialOrOptions as KeyCredential | TokenCredential,
-          options as RTAzureOpenAIOptions,
+          options as RTAzureOpenAIOptions | RTVoiceAgentOptions,
         );
       }
     })();
@@ -850,7 +863,7 @@ export class RTClient {
         message.item_id,
         undefined,
         this.session?.input_audio_transcription !== undefined &&
-          this.session?.input_audio_transcription !== null,
+        this.session?.input_audio_transcription !== null,
         this.messageQueue,
       );
     } else {
@@ -869,6 +882,29 @@ export class RTClient {
     } else if (message.type === "error") {
       throw new RTError(message.error);
     } else if (message.type !== "input_audio_buffer.cleared") {
+      throw new Error("Unexpected message type");
+    }
+  }
+
+  async connectAvatar(client_sdp: RTCSessionDescription): Promise<RTCSessionDescription> {
+    await this.init();
+    const base64 = btoa(JSON.stringify(client_sdp));
+    await this.client.send({
+      type: "session.avatar.connect",
+      client_sdp: base64,
+    });
+    const message = await this.messageQueue.receive(
+      (m) => m.type === "session.avatar.connecting",
+    );
+    if (message === null) {
+      throw new Error("Failed to connect avatar");
+    } else if (message.type === "error") {
+      throw new RTError(message.error);
+    } else if (message.type === "session.avatar.connecting") {
+      return new RTCSessionDescription(
+        JSON.parse(atob(message.server_sdp)) as RTCSessionDescriptionInit,
+      );
+    } else {
       throw new Error("Unexpected message type");
     }
   }
@@ -915,10 +951,10 @@ export class RTClient {
     }
   }
 
-  async generateResponse(): Promise<RTResponse | undefined> {
+  async generateResponse(response?: ResponseCreateParams, waitForGenerated?: boolean): Promise<RTResponse | undefined> {
     await this.init();
-    await this.client.send({ type: "response.create" });
-    if (!this.iterating) {
+    await this.client.send({ type: "response.create", response });
+    if (!this.iterating && waitForGenerated === true) {
       const message = await this.messageQueue.receive(
         (m) => m.type === "response.created",
       );
@@ -953,13 +989,15 @@ export class RTClient {
         } else if (message.type === "error") {
           throw new RTError(message.error);
         } else if (message.type === "input_audio_buffer.speech_started") {
-          yield RTInputAudioItem.create(
+          const input_audio_item = RTInputAudioItem.create(
             message.item_id,
             message.audio_start_ms,
             this.session?.input_audio_transcription !== undefined &&
-              this.session?.input_audio_transcription !== null,
+            this.session?.input_audio_transcription !== null,
             this.messageQueue,
           );
+          yield input_audio_item;
+          await input_audio_item.waitForCompletion();
         } else if (message.type === "response.created") {
           yield RTResponse.create(
             message.response,

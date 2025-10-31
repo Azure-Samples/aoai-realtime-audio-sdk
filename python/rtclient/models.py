@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import logging
 from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import (
@@ -14,8 +15,10 @@ from pydantic import (
 
 from rtclient.util.model_helpers import ModelWithDefaults
 
-Voice = Literal["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"]
-AudioFormat = Literal["pcm16", "g711-ulaw", "g711-alaw"]
+logger = logging.getLogger(__name__)
+
+Voice = Literal["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"]
+AudioFormat = Literal["pcm16", "g711_ulaw", "g711_alaw"]
 Modality = Literal["text", "audio"]
 
 
@@ -28,14 +31,23 @@ class ServerVAD(ModelWithDefaults):
     threshold: Optional[Annotated[float, Field(strict=True, ge=0.0, le=1.0)]] = None
     prefix_padding_ms: Optional[int] = None
     silence_duration_ms: Optional[int] = None
+    create_response: bool = True
+    interrupt_response: bool = True
 
 
-TurnDetection = Annotated[Union[NoTurnDetection, ServerVAD], Field(discriminator="type")]
+class SemanticVAD(ModelWithDefaults):
+    type: Literal["semantic_vad"] = "semantic_vad"
+    eagerness: Literal["low", "medium", "high", "auto"] = "auto"
+    create_response: bool = True
+    interrupt_response: bool = True
+
+
+TurnDetection = Annotated[Union[NoTurnDetection, ServerVAD, SemanticVAD], Field(discriminator="type")]
 
 
 class FunctionToolChoice(ModelWithDefaults):
     type: Literal["function"] = "function"
-    function: str
+    name: str
 
 
 ToolChoice = Literal["auto", "none", "required"] | FunctionToolChoice
@@ -44,7 +56,13 @@ MessageRole = Literal["system", "assistant", "user"]
 
 
 class InputAudioTranscription(BaseModel):
-    model: Literal["whisper-1"]
+    model: Literal["whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "gpt-4o-transcribe-diarize"]
+    language: Optional[str] = None
+    prompt: Optional[str] = None
+
+
+class InputAudioNoiseReduction(BaseModel):
+    type: Literal["near_field", "far_field"]
 
 
 class ClientMessageBase(ModelWithDefaults):
@@ -52,7 +70,7 @@ class ClientMessageBase(ModelWithDefaults):
     event_id: Optional[str] = None
 
 
-Temperature = Annotated[float, Field(strict=True, ge=0.6, le=1.2)]
+Temperature = Annotated[float, Field(strict=True, ge=0.0, le=2.0)]
 ToolsDefinition = list[Any]
 
 MaxTokensType = Union[int, Literal["inf"]]
@@ -66,11 +84,13 @@ class SessionUpdateParams(BaseModel):
     input_audio_format: Optional[AudioFormat] = None
     output_audio_format: Optional[AudioFormat] = None
     input_audio_transcription: Optional[InputAudioTranscription] = None
+    input_audio_noise_reduction: Optional[InputAudioNoiseReduction] = None
     turn_detection: Optional[TurnDetection] = None
     tools: Optional[ToolsDefinition] = None
     tool_choice: Optional[ToolChoice] = None
     temperature: Optional[Temperature] = None
     max_response_output_tokens: Optional[MaxTokensType] = None
+    idle_timeout: Optional[int] = None
 
 
 class SessionUpdateMessage(ClientMessageBase):
@@ -135,6 +155,11 @@ class InputAudioContentPart(ModelWithDefaults):
     audio: str
     transcript: Optional[str] = None
 
+class InputImageContentPart(ModelWithDefaults):
+    type: Literal["input_image"] = "input_image"
+    image_url: str
+    detail: Literal["auto", "high"] = "auto"
+
 
 class OutputTextContentPart(ModelWithDefaults):
     type: Literal["text"] = "text"
@@ -142,7 +167,7 @@ class OutputTextContentPart(ModelWithDefaults):
 
 
 SystemContentPart = InputTextContentPart
-UserContentPart = Union[Annotated[Union[InputTextContentPart, InputAudioContentPart], Field(discriminator="type")]]
+UserContentPart = Union[Annotated[Union[InputTextContentPart, InputAudioContentPart, InputImageContentPart], Field(discriminator="type")]]
 AssistantContentPart = OutputTextContentPart
 
 ItemParamStatus = Literal["completed", "incomplete"]
@@ -199,6 +224,11 @@ class ItemCreateMessage(ClientMessageBase):
     type: Literal["conversation.item.create"] = "conversation.item.create"
     previous_item_id: Optional[str] = None
     item: Item
+
+
+class ItemRetrieveMessage(ClientMessageBase):
+    type: Literal["conversation.item.retrieve"] = "conversation.item.retrieve"
+    item_id: str
 
 
 class ItemTruncateMessage(ClientMessageBase):
@@ -271,11 +301,13 @@ class Session(BaseModel):
     input_audio_format: AudioFormat
     output_audio_format: AudioFormat
     input_audio_transcription: Optional[InputAudioTranscription]
+    input_audio_noise_reduction: Optional[InputAudioNoiseReduction]
     turn_detection: Optional[TurnDetection]
     tools: ToolsDefinition
     tool_choice: ToolChoice
     temperature: Temperature
     max_response_output_tokens: Optional[MaxTokensType]
+    idle_timeout: Optional[int] = None
 
 
 class SessionCreatedMessage(ServerMessageBase):
@@ -332,6 +364,19 @@ class InputAudioBufferSpeechStoppedMessage(ServerMessageBase):
     item_id: str
 
 
+class InputAudioBufferTimeoutTriggeredMessage(ServerMessageBase):
+    """
+    This event is sent when the idle timeout is triggered after a period of inactivity.
+    It indicates that the user has been silent for longer than the configured idle_timeout_ms.
+    """
+
+    type: Literal["input_audio_buffer.timeout_triggered"] = "input_audio_buffer.timeout_triggered"
+    item_id: str
+    previous_item_id: Optional[str] = None
+    audio_start_ms: int
+    audio_end_ms: int
+
+
 ResponseItemStatus = Literal["in_progress", "completed", "incomplete"]
 
 
@@ -345,13 +390,19 @@ class ResponseItemInputAudioContentPart(BaseModel):
     transcript: Optional[str]
 
 
+class ResponseItemInputImageContentPart(BaseModel):
+    type: Literal["input_image"] = "input_image"
+    image_url: str | None = None
+    detail: Literal["auto", "high"] = "auto"
+
+
 class ResponseItemTextContentPart(BaseModel):
-    type: Literal["text"] = "text"
+    type: Literal["text", "output_text"] = "text"
     text: str
 
 
 class ResponseItemAudioContentPart(BaseModel):
-    type: Literal["audio"] = "audio"
+    type: Literal["audio", "output_audio"] = "audio"
     transcript: Optional[str]
 
 
@@ -359,6 +410,7 @@ ResponseItemContentPart = Annotated[
     Union[
         ResponseItemInputTextContentPart,
         ResponseItemInputAudioContentPart,
+        ResponseItemInputImageContentPart,
         ResponseItemTextContentPart,
         ResponseItemAudioContentPart,
     ],
@@ -403,6 +455,11 @@ class ItemCreatedMessage(ServerMessageBase):
     item: ResponseItem
 
 
+class ItemRetrievedMessage(ServerMessageBase):
+    type: Literal["conversation.item.retrieved"] = "conversation.item.retrieved"
+    item: ResponseItem
+
+
 class ItemTruncatedMessage(ServerMessageBase):
     type: Literal["conversation.item.truncated"] = "conversation.item.truncated"
     item_id: str
@@ -422,6 +479,19 @@ class ItemInputAudioTranscriptionDeltaMessage(ServerMessageBase):
     item_id: str
     content_index: int
     delta: str
+
+
+class ItemInputAudioTranscriptionSegmentMessage(ServerMessageBase):
+    type: Literal["conversation.item.input_audio_transcription.segment"] = (
+        "conversation.item.input_audio_transcription.segment"
+    )
+    item_id: str
+    content_index: int
+    text: str
+    id: str
+    speaker: str
+    start: float
+    end: float
 
 
 class ItemInputAudioTranscriptionCompletedMessage(ServerMessageBase):
@@ -466,10 +536,18 @@ ResponseStatusDetails = Annotated[
 ]
 
 
+class CachedTokenDetails(BaseModel):
+    text_tokens: int | None = None
+    audio_tokens: int | None = None
+    image_tokens: int = 0
+
+
 class InputTokenDetails(BaseModel):
     cached_tokens: int
     text_tokens: int
     audio_tokens: int
+    image_tokens: int = 0
+    cached_tokens_details: CachedTokenDetails | None = None
 
 
 class OutputTokenDetails(BaseModel):
@@ -486,11 +564,19 @@ class Usage(BaseModel):
 
 
 class Response(BaseModel):
+    object: Literal["realtime.response"] = "realtime.response"
     id: str
     status: ResponseStatus
     status_details: Optional[ResponseStatusDetails]
     output: list[ResponseItem]
     usage: Optional[Usage]
+    conversation_id: Optional[str] = None
+    modalities: set[Modality] | None = None
+    voice: Voice | None = None
+    output_audio_format: AudioFormat | None = None
+    temperature: Optional[Temperature] = None
+    max_output_tokens: Optional[MaxTokensType] = None
+    metadata: Optional[dict[str, str]] = None
 
 
 class ResponseCreatedMessage(ServerMessageBase):
@@ -622,6 +708,9 @@ class RateLimitsUpdatedMessage(ServerMessageBase):
     type: Literal["rate_limits.updated"] = "rate_limits.updated"
     rate_limits: list[RateLimits]
 
+class UnknownServerMessage(ServerMessageBase):
+    type: Literal["unknown"] = "unknown"
+
 
 UserMessageType = Annotated[
     Union[
@@ -630,6 +719,7 @@ UserMessageType = Annotated[
         InputAudioBufferCommitMessage,
         InputAudioBufferClearMessage,
         ItemCreateMessage,
+        ItemRetrieveMessage,
         ItemTruncateMessage,
         ItemDeleteMessage,
         ResponseCreateMessage,
@@ -647,10 +737,13 @@ ServerMessageType = Annotated[
         InputAudioBufferClearedMessage,
         InputAudioBufferSpeechStartedMessage,
         InputAudioBufferSpeechStoppedMessage,
+        InputAudioBufferTimeoutTriggeredMessage,
         ItemCreatedMessage,
+        ItemRetrievedMessage,
         ItemTruncatedMessage,
         ItemDeletedMessage,
         ItemInputAudioTranscriptionDeltaMessage,
+        ItemInputAudioTranscriptionSegmentMessage,
         ItemInputAudioTranscriptionCompletedMessage,
         ItemInputAudioTranscriptionFailedMessage,
         ResponseCreatedMessage,
@@ -668,6 +761,7 @@ ServerMessageType = Annotated[
         ResponseFunctionCallArgumentsDeltaMessage,
         ResponseFunctionCallArgumentsDoneMessage,
         RateLimitsUpdatedMessage,
+        UnknownServerMessage,
     ],
     Field(discriminator="type"),
 ]
@@ -690,14 +784,20 @@ def create_message_from_dict(data: dict) -> ServerMessageType:
             return InputAudioBufferSpeechStartedMessage(**data)
         case "input_audio_buffer.speech_stopped":
             return InputAudioBufferSpeechStoppedMessage(**data)
+        case "input_audio_buffer.timeout_triggered":
+            return InputAudioBufferTimeoutTriggeredMessage(**data)
         case "conversation.item.created":
             return ItemCreatedMessage(**data)
+        case "conversation.item.retrieved":
+            return ItemRetrievedMessage(**data)
         case "conversation.item.truncated":
             return ItemTruncatedMessage(**data)
         case "conversation.item.deleted":
             return ItemDeletedMessage(**data)
         case "conversation.item.input_audio_transcription.delta":
             return ItemInputAudioTranscriptionDeltaMessage(**data)
+        case "conversation.item.input_audio_transcription.segment":
+            return ItemInputAudioTranscriptionSegmentMessage(**data)
         case "conversation.item.input_audio_transcription.completed":
             return ItemInputAudioTranscriptionCompletedMessage(**data)
         case "conversation.item.input_audio_transcription.failed":
@@ -733,5 +833,5 @@ def create_message_from_dict(data: dict) -> ServerMessageType:
         case "rate_limits.updated":
             return RateLimitsUpdatedMessage(**data)
         case _:
-            print(f"Unknown message type: {event_type}, data: {data}")
-            return UnknownMessage(**data)
+            logger.error(f"Unknown message type: {event_type}. Data: {data}")
+            return UnknownServerMessage(**data)

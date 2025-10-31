@@ -149,6 +149,7 @@ async def run(client: RTClient, audio_file_path: str, out_dir: str):
     await client.configure(
         turn_detection=ServerVAD(threshold=0.5, prefix_padding_ms=300, silence_duration_ms=200),
         input_audio_transcription=InputAudioTranscription(model="whisper-1"),
+        idle_timeout=300,  # Set session idle timeout to 5 minutes (300 seconds)
     )
     print("Done")
 

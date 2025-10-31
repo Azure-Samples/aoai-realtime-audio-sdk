@@ -98,6 +98,14 @@ One of the key session-wide settings is `turn_detection`, which controls how dat
 - `server_vad` will evaluate incoming user audio (as sent via `input_audio_buffer.append`) using a voice activity detector (VAD) component and automatically use that audio to initiate response generation on applicable conversations when an end of speech is detected. Silence detection for the VAD can be configured when specifying `server_vad` detection mode.
 - `none` will rely on caller-initiated `input_audio_buffer.commit` and `response.create` commands to progress conversations and produce output. This is useful for push-to-talk applications or situations that have external audio flow control (such as caller-side VAD component). Note that these manual signals can be still be used in `server_vad` mode to supplement VAD-initiated response generation.
 
+**Session idle timeout**
+
+The `idle_timeout` parameter allows you to configure how long a session should remain active when there's no activity. When set, the session will automatically close after the specified number of seconds of inactivity. This helps manage resource usage and costs by ensuring sessions don't remain open indefinitely.
+
+- `idle_timeout`: An integer value (in seconds) between 1 and 3600 (1 hour)
+- If not specified, sessions will remain open until explicitly closed
+- The timeout is reset whenever there's activity on the session (audio input, text messages, etc.)
+
 Transcription of user input audio is opted into via the `input_audio_transcription` property; specifying a transcription model (`whisper-1`) in this configuration will enable the delivery of `conversation.item.audio_transcription.completed` events.
 
 An example `session.update` that configures several aspects of the session, including tools, follows. Note that all session parameters are optional; not everything needs to be configured!

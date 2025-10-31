@@ -41,6 +41,7 @@ from rtclient.models import (
     ItemParamStatus,
     ItemTruncatedMessage,
     ItemTruncateMessage,
+    MaxTokensType,
     MessageItem,
     MessageItemType,
     MessageRole,
@@ -150,12 +151,12 @@ class RTInputAudioItem:
         self.audio_end_ms: Optional[int] = None
         self.transcript: Optional[str] = None
         self._has_transcription = has_transcription
-        self.__queue = queue
+        self._queue = queue
 
     def __await__(self):
         async def resolve():
             while True:
-                message = await self.__queue.receive(
+                message = await self._queue.receive(
                     lambda m: (
                         m.type
                         in [
@@ -181,7 +182,7 @@ class RTInputAudioItem:
                     self.transcript = message.transcript
                     return
                 elif message.type == "conversation.item.input_audio_transcription.failed":
-                    raise RealtimeError(message.error)
+                    raise RealtimeException(message.error)
 
         return resolve().__await__()
 
@@ -252,7 +253,8 @@ class RTAudioContent:
             ]
 
         return await self.__queue.receive(
-            lambda m: is_valid_message(m) and m.item_id == self.item_id and m.content_index == self.content_index
+            lambda m: is_valid_message(m) and m.item_id == self.item_id and m.content_index == self.content_index,
+            error_predicate_override=lambda m: m.type == "error" and m.error.code not in {"conversation_already_has_active_response", "response_cancel_not_active"},
         )
 
     @property
@@ -314,8 +316,10 @@ class RTTextContent:
         assert message.part.type == "text"
         self._part = message.part
         self.__queue = queue
-        self.__content_queue = MessageQueueWithError(
-            self._receive_content, lambda m: m.type == "response.content_part.done"
+        self.__content_queue = SharedEndQueue(
+            self._receive_content,
+            lambda m: m.type == "error",
+            lambda m: m.type == "response.content_part.done",
         )
 
     async def _receive_content(self):
@@ -331,11 +335,14 @@ class RTTextContent:
             return m.type in [
                 "response.text.delta",
                 "response.text.done",
+                "response.output_text.delta",
+                "response.output_text.done",
                 "response.content_part.done",
             ]
 
         return await self.__queue.receive(
-            lambda m: is_valid_message(m) and m.item_id == self.item_id and m.content_index == self.content_index
+            lambda m: is_valid_message(m) and m.item_id == self.item_id and m.content_index == self.content_index,
+            error_predicate_override=lambda m: m.type == "error" and m.error.code not in {"conversation_already_has_active_response", "response_cancel_not_active"},
         )
 
     @property
@@ -353,7 +360,7 @@ class RTTextContent:
     async def text_chunks(self) -> AsyncGenerator[str]:
         while True:
             message = await self.__content_queue.receive(
-                lambda m: m.type in ["response.text.delta", "response.text.done"]
+                lambda m: m.type in ["response.text.delta", "response.output_text.delta", "response.text.done", "response.output_text.done"]
             )
             if message is None:
                 break
@@ -363,9 +370,9 @@ class RTTextContent:
                 break
             if message.type == "error":
                 raise RealtimeException(message.error)
-            if message.type == "response.text.delta":
+            if message.type == "response.text.delta" or message.type == "response.output_text.delta":
                 yield message.delta
-            elif message.type == "response.text.done":
+            elif message.type == "response.text.done" or message.type == "response.output_text.done":
                 # We are skipping this as it's information is already provided by 'response.content_part.done'
                 # and that is a better signal to end the iteration
                 continue
@@ -400,7 +407,8 @@ class RTMessageItem:
     async def __anext__(self):
         message = await self.__queue.receive(
             lambda m: (m.type == "response.content_part.added" and m.item_id == self.id)
-            or (m.type == "response.output_item.done" and m.item.id == self.id)
+            or (m.type == "response.output_item.done" and m.item.id == self.id),
+            error_predicate_override=lambda m: m.type == "error" and m.error.code not in {"conversation_already_has_active_response", "response_cancel_not_active"},
         )
         if message is None:
             raise StopAsyncIteration
@@ -459,7 +467,8 @@ class RTFunctionCallItem:
                     m.type in ["response.function_call_arguments.delta", "response.function_call_arguments.done"]
                     and m.item_id == self.id
                 )
-                or (m.type == "response.output_item.done" and m.item.id == self.id)
+                or (m.type == "response.output_item.done" and m.item.id == self.id),
+                error_predicate_override=lambda m: m.type == "error" and m.error.code not in {"conversation_already_has_active_response", "response_cancel_not_active"},
             )
             if message is None:
                 break
@@ -544,7 +553,8 @@ class RTResponse:
             raise StopAsyncIteration
         message = await self.__queue.receive(
             lambda m: (m.type == "response.done" and m.response.id == self.id)
-            or (m.type == "response.output_item.added" and m.response_id == self.id)
+            or (m.type == "response.output_item.added" and m.response_id == self.id),
+            error_predicate_override=lambda m: m.type == "error" and m.error.code not in {"conversation_already_has_active_response", "response_cancel_not_active"},
         )
         if message is None:
             raise StopAsyncIteration
@@ -557,13 +567,14 @@ class RTResponse:
         if message.type == "response.output_item.added":
             # TODO: This can probably be generalized and reused (similar to the input item pattern)
             created_message = await self.__queue.receive(
-                lambda m: m.type == "conversation.item.created" and m.item.id == message.item.id
+                lambda m: m.type in ("conversation.item.created", "conversation.item.added") and m.item.id == message.item.id,
+                error_predicate_override=lambda m: m.type == "error" and m.error.code not in {"conversation_already_has_active_response", "response_cancel_not_active"},
             )
             if created_message is None:
                 raise StopAsyncIteration
             if created_message.type == "error":
                 raise RealtimeException(created_message.error)
-            assert created_message.type == "conversation.item.created"
+            assert created_message.type in ("conversation.item.created", "conversation.item.added")
             if created_message.item.type == "message":
                 return RTMessageItem(self.id, created_message.item, created_message.previous_item_id, self.__queue)
             elif created_message.item.type == "function_call":
@@ -581,8 +592,10 @@ class RTClient:
         key_credential: Optional[AzureKeyCredential] = None,
         model: Optional[str] = None,
         azure_deployment: Optional[str] = None,
+        extra_headers: Optional[dict[str, str]] = None,
+        extra_params: Optional[dict[str, str]] = None,
     ):
-        self._client = RTLowLevelClient(url, token_credential, key_credential, model, azure_deployment)
+        self._client = RTLowLevelClient(url, token_credential, key_credential, model, azure_deployment, extra_headers, extra_params)
 
         self._message_queue = MessageQueueWithError(self._receive_message, lambda m: m.type == "error")
 
@@ -612,7 +625,8 @@ class RTClient:
         tools: Optional[ToolsDefinition] = None,
         tool_choice: Optional[ToolChoice] = None,
         temperature: Optional[Temperature] = None,
-        max_response_output_tokens: Optional[int] = None,
+        max_response_output_tokens: Optional[MaxTokensType] = None,
+        idle_timeout: Optional[int] = None,
     ) -> Session:
         session_update_params = SessionUpdateParams()
         if model is not None:
@@ -639,6 +653,8 @@ class RTClient:
             session_update_params.temperature = temperature
         if max_response_output_tokens is not None:
             session_update_params.max_response_output_tokens = max_response_output_tokens
+        if idle_timeout is not None:
+            session_update_params.idle_timeout = idle_timeout
         await self._client.send(SessionUpdateMessage(session=session_update_params))
 
         message = await self._message_queue.receive(lambda m: m.type == "session.updated")

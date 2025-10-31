@@ -515,6 +515,12 @@ components:
                 - type: string
                   enum:
                     - inf
+            idle_timeout:
+              type: integer
+              format: int32
+              description: "Session idle timeout in seconds. The session will be closed after this many seconds of inactivity."
+              minimum: 1
+              maximum: 3600
       allOf:
         - $ref: '#/components/schemas/Realtime.RealtimeRequestCommand'
     Realtime.RealtimeRequestSystemMessageItem:
@@ -1446,6 +1452,11 @@ components:
         max_response_output_tokens:
           type: integer
           format: int32
+          nullable: true
+        idle_timeout:
+          type: integer
+          format: int32
+          description: "Session idle timeout in seconds. The session will be closed after this many seconds of inactivity."
           nullable: true
     Realtime.RealtimeResponseSessionCreatedCommand:
       type: object

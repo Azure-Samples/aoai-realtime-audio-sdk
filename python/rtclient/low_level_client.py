@@ -31,26 +31,37 @@ class RTLowLevelClient:
         key_credential: Optional[AzureKeyCredential] = None,
         model: Optional[str] = None,
         azure_deployment: Optional[str] = None,
+        extra_headers: Optional[dict] = None,
+        extra_params: Optional[dict] = None,
     ):
-        self._is_azure_openai = url is not None
+        self._is_azure_openai = (url is not None and not extra_headers) or (azure_deployment is not None)
+        self._custom_endpoint = url is not None
+        self._extra_params = extra_params or {}
         if self._is_azure_openai:
             if key_credential is None and token_credential is None:
                 raise ValueError("key_credential or token_credential is required for Azure OpenAI")
             if azure_deployment is None:
                 raise ValueError("azure_deployment is required for Azure OpenAI")
+        elif self._custom_endpoint:
+            pass
         else:
             if key_credential is None:
                 raise ValueError("key_credential is required for OpenAI")
             if model is None:
                 raise ValueError("model is required for OpenAI")
 
-        self._url = url if self._is_azure_openai else "wss://api.openai.com"
+        if azure_deployment:
+            url = url.rstrip("/") + "/openai"
+
+
+        self._url = url.rstrip("/")  if url else "wss://api.openai.com/v1"
         self._token_credential = token_credential
         self._key_credential = key_credential
-        self._session = ClientSession(base_url=self._url)
+        self._session = ClientSession()
         self._model = model
         self._azure_deployment = azure_deployment
         self.request_id: Optional[uuid.UUID] = None
+        self._extra_headers = extra_headers or {}
 
     async def _get_auth(self):
         if self._token_credential:
@@ -67,7 +78,7 @@ class RTLowLevelClient:
         api_version = os.getenv("AZURE_OPENAI_API_VERSION")
         path = os.getenv("AZURE_OPENAI_PATH")
         return (
-            "2024-10-01-preview" if api_version is None else api_version,
+            "2025-04-01-preview" if api_version is None else api_version,
             "/openai/realtime" if path is None else path,
         )
 
@@ -75,7 +86,7 @@ class RTLowLevelClient:
         try:
             self.request_id = uuid.uuid4()
             if self._is_azure_openai:
-                api_version, path = RTLowLevelClient._get_azure_params()
+                api_version = os.getenv("AZURE_OPENAI_API_REALTIME_VERSION", "2025-04-01-preview")
                 auth_headers = await self._get_auth()
                 headers = {
                     "x-ms-client-request-id": str(self.request_id),
@@ -83,9 +94,22 @@ class RTLowLevelClient:
                     **auth_headers,
                 }
                 self.ws = await self._session.ws_connect(
-                    path,
+                    f"{self._url}/realtime",
                     headers=headers,
                     params={"deployment": self._azure_deployment, "api-version": api_version},
+                )
+            elif self._custom_endpoint:
+                auth_headers = await self._get_auth()
+                headers = {
+                    "x-ms-client-request-id": str(self.request_id),
+                    "User-Agent": get_user_agent(),
+                    **auth_headers,
+                    **self._extra_headers,
+                }
+                self.ws = await self._session.ws_connect(
+                    f"{self._url}/realtime",
+                    headers=headers,
+                    params=self._extra_params,
                 )
             else:
                 headers = {
@@ -93,7 +117,7 @@ class RTLowLevelClient:
                     "openai-beta": "realtime=v1",
                     "User-Agent": get_user_agent(),
                 }
-                self.ws = await self._session.ws_connect("/v1/realtime", headers=headers, params={"model": self._model})
+                self.ws = await self._session.ws_connect(f"{self._url}/realtime", headers=headers, params={"model": self._model})
         except WSServerHandshakeError as e:
             await self._session.close()
             error_message = f"Received status code {e.status} from the server"

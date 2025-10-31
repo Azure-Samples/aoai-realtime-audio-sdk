@@ -6,6 +6,7 @@ import {
   ConnectionSettings,
   RTAzureOpenAIOptions,
   RTOpenAIOptions,
+  RTVoiceAgentOptions,
 } from "./interfaces";
 
 function getUserAgent() {
@@ -37,9 +38,76 @@ export function azureOpenAISettings(
 
   const scopes = ["https://cognitiveservices.azure.com/.default"];
 
-  uri.searchParams.set("api-version", "2024-10-01-preview");
+  uri.searchParams.set("api-version", options.apiVersion ?? "2024-10-01-preview");
   uri.searchParams.set("deployment", options.deployment);
-  uri.pathname = "openai/realtime";
+  uri.pathname = options.path ?? "openai/realtime";
+  return {
+    uri,
+    headers: {
+      "User-Agent": getUserAgent(),
+      "x-ms-client-request-id": requestId,
+    },
+    policy: async (settings) => {
+      if (isKeyCredential(credential)) {
+        settings.headers = {
+          ...settings.headers,
+          "api-key": credential.key,
+        };
+      } else {
+        const token = await credential.getToken(scopes);
+        settings.headers = {
+          ...settings.headers,
+          Authorization: `Bearer ${token.token}`,
+          requestId,
+        };
+      }
+      return settings;
+    },
+  };
+}
+
+
+export function voiceLiveSettings(
+  uri: URL,
+  credential: KeyCredential | TokenCredential,
+  options: RTVoiceAgentOptions,
+): ConnectionSettings {
+  const requestId = options.requestId ?? crypto.randomUUID();
+
+  const scopes = ["https://cognitiveservices.azure.com/.default"];
+
+  uri.searchParams.set("api-version", options.apiVersion ?? "2025-05-01-preview");
+  uri.searchParams.set("x-ms-client-request-id", requestId!);
+  if (typeof options.modelOrAgent === "string") {
+    uri.searchParams.set("model", options.modelOrAgent);
+  } else {
+    uri.searchParams.set("agent_id", options.modelOrAgent.agentId);
+    if (options.modelOrAgent.projectName) {
+      uri.searchParams.set("agent-project-name", options.modelOrAgent.projectName);
+    }
+    if (options.modelOrAgent.agentConnectionString) {
+      uri.searchParams.set(
+        "agent_connection_string",
+        options.modelOrAgent.agentConnectionString,
+      );
+    }
+    if (options.modelOrAgent.agentAuthenticationIdentityClientId) {
+      uri.searchParams.set(
+        "agent_authentication_identity_client_id",
+        options.modelOrAgent.agentAuthenticationIdentityClientId,
+      );
+    }
+    if (options.modelOrAgent.agentAccessToken) {
+      uri.searchParams.set(
+        "agent_access_token",
+        options.modelOrAgent.agentAccessToken,
+      );
+    }
+    if (options.modelOrAgent.threadId) {
+      uri.searchParams.set("agent_thread_id", options.modelOrAgent.threadId);
+    }
+  }
+  uri.pathname = options.path ?? "voice-live/realtime";
   return {
     uri,
     headers: {

@@ -32,10 +32,12 @@ class ServerVAD(ModelWithDefaults):
 
 TurnDetection = Annotated[Union[NoTurnDetection, ServerVAD], Field(discriminator="type")]
 
+class FunctionName(BaseModel):
+    name: str
 
 class FunctionToolChoice(ModelWithDefaults):
     type: Literal["function"] = "function"
-    function: str
+    function: FunctionName
 
 
 ToolChoice = Literal["auto", "none", "required"] | FunctionToolChoice

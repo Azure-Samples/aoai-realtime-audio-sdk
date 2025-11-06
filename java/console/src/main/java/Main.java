@@ -82,6 +82,7 @@ public class Main {
         client.sendMessage(new SessionUpdateEvent(
                 new RealtimeRequestSession()
                         .setVoice(RealtimeVoice.ALLOY)
+                        .setInstructions("You are a helpful assistant and always respond with audio in English.")
                         .setTurnDetection(
                                 new RealtimeServerVadTurnDetection()
                                         .setThreshold(0.5)
